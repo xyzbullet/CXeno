@@ -655,7 +655,7 @@ function is_client_loaded()
 end
 
 ProcessID = is_client_loaded()
-while not ProcessID do
+while not tonumber(ProcessID) do
 	ProcessID = is_client_loaded()
 end
 
@@ -724,7 +724,7 @@ function Xeno.Xeno.GetGlobal(global_name)
 	if not result then
 		return
 	end
-	
+
 	result = HttpService:JSONDecode(result)
 	if result.t == "string" then
 		return tostring(result.d)

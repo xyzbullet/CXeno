@@ -359,7 +359,7 @@ static void serve(Response& res, json& body) {
 		}
 
 		res.status = 400;
-		res.set_content(R"({"error":"Client with the given username was not found"})", "application/json");
+		res.set_content(R"({"error":"Client with the given PID was not found"})", "application/json");
 		return;
 	}
 
@@ -384,7 +384,7 @@ static void serve(Response& res, json& body) {
 		}
 
 		res.status = 400;
-		res.set_content(R"({"error":"Client with the given username was not found"})", "application/json");
+		res.set_content(R"({"error":"Client with the given PID was not found"})", "application/json");
 		return;
 	}
 
@@ -494,7 +494,7 @@ static void serve(Response& res, json& body) {
 		}
 
 		res.status = 400;
-		res.set_content(R"({"error":"Client with the given username was not found"})", "application/json");
+		res.set_content(R"({"error":"Client with the given PID was not found"})", "application/json");
 		return;
 	}
 
@@ -521,7 +521,7 @@ static void serve(Response& res, json& body) {
 		}
 
 		res.status = 400;
-		res.set_content(R"({"error":"Client with the given username was not found"})", "application/json");
+		res.set_content(R"({"error":"Client with the given PID was not found"})", "application/json");
 		return;
 	}
 
@@ -712,7 +712,7 @@ void setup_connection()
 		}
 
 		res.status = 400;
-		res.set_content(R"({"error":"Client with the given username was not found"})", "application/json");
+		res.set_content(R"({"error":"Client with the given PID was not found"})", "application/json");
 		return;
 	});
 

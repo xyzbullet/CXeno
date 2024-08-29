@@ -1,1 +1,1 @@
-saveinstance()
+print("Hello, World!")

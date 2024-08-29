@@ -293,21 +293,24 @@ RBXClient::RBXClient(DWORD processID) :
         std::cerr << "[!] Roblox HWND not found\n";
         return;
     }
-    HWND previousHWND = GetForegroundWindow();
 
-    while (GetForegroundWindow() != robloxHWND) {
-        SetForegroundWindow(robloxHWND);
-        Sleep(5);
-    }
+    std::thread([robloxHWND]() {
+        HWND previousHWND = GetForegroundWindow();
 
-    keybd_event(VK_ESCAPE, MapVirtualKey(VK_ESCAPE, 0), KEYEVENTF_SCANCODE, 0);
-    keybd_event(VK_ESCAPE, MapVirtualKey(VK_ESCAPE, 0), KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, 0);
+        while (GetForegroundWindow() != robloxHWND) {
+            SetForegroundWindow(robloxHWND);
+            Sleep(5);
+        }
 
-    Sleep(100);
+        keybd_event(VK_ESCAPE, MapVirtualKey(VK_ESCAPE, 0), KEYEVENTF_SCANCODE, 0);
+        keybd_event(VK_ESCAPE, MapVirtualKey(VK_ESCAPE, 0), KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, 0);
 
-    if (previousHWND != nullptr) {
-        SetForegroundWindow(previousHWND);
-    }
+        Sleep(100);
+
+        if (previousHWND != nullptr) {
+            SetForegroundWindow(previousHWND);
+        }
+    }).detach();
 
     Sleep(800);
 
