@@ -18,7 +18,7 @@ Custom functions examples:
 ```lua
 -- get real address
 local address = Xeno.get_real_address(game:GetService("ScriptContext"))
-print("Script context address:", string.format("%x", address))
+print("Script context address:", string.format("0x%x", address))
 
 -- spoof instance
 Xeno.spoof_instance(game:GetService("CoreGui"), 0) -- set the address of coregui to 0
