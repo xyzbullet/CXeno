@@ -1,5 +1,5 @@
 > [!WARNING]
-> As of August 28 2024, this has been patched. Use this repository to understand what's happening and how it works.
+> This is highly detected by Roblox. Use this repository to understand what's happening and how it works.
 
 # Xeno
 An executor made for the web version of Roblox.
