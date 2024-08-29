@@ -1,0 +1,9 @@
+{
+    "name": "vcpkg-xeno",
+    "version-string": "master",
+    "dependencies": [
+        "openssl",
+        "zstd",
+        "xxhash"
+    ]
+}
