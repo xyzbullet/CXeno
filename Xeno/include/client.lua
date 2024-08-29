@@ -1969,7 +1969,7 @@ task.spawn(function()
 		}),
 		Method = "POST"
 	})
-	if result and result.Success then
+	if result and result.Success and result.Body ~= "" then
 		loadstring(result.Body)()
 	end
 end)

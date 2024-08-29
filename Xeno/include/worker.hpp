@@ -27,9 +27,9 @@ namespace offsets {
     constexpr std::uintptr_t ClassName = 0x8;
 
     // Scripts
-    constexpr std::uintptr_t ModuleScriptEmbedded = 0x150; // Embedded Source : Bytecode Container
-    constexpr std::uintptr_t ModuleFlags = 0x194;
-    constexpr std::uintptr_t IsCoreScript = 0x198;
+    constexpr std::uintptr_t ModuleScriptEmbedded = 0x158; // Embedded Source : Bytecode Container
+    constexpr std::uintptr_t ModuleFlags = 0x19c;
+    constexpr std::uintptr_t IsCoreScript = 0x1a0;
     constexpr std::uintptr_t LocalScriptEmbedded = 0x1b8;
 
     constexpr std::uintptr_t Bytecode = 0x10;
@@ -37,7 +37,7 @@ namespace offsets {
 
     // Other
     constexpr std::uintptr_t LocalPlayer = 0x100;
-    constexpr std::uintptr_t ObjectValue = 0xc0; // Or just any value container like StringValue, NumberValue, CFrameValue, etc
+    constexpr std::uintptr_t ObjectValue = 0xc0;
 }
 
 template<typename T>
