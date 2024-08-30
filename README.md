@@ -43,6 +43,12 @@ print(Xeno.PID) -- current roblox process id
 print(Xeno.GUID) -- the guid it is using to communicate with the external
 ```
 
+The current method of adding **HttpGet** to "game" interferes with some scripts like [**dex**](https://raw.githubusercontent.com/infyiff/backup/main/dex.lua). To execute dex run this script:
+```lua
+getgenv().game = workspace.Parent
+```
+This will remove **HttpGet** from game!
+
 I have only used this project to learn C++ and a bit of C#.
 
 Do not expect the best code and memory management.
@@ -76,3 +82,5 @@ Thank you [**Incognito**](https://github.com/Incognito-Roblox/Incognito) for the
 Thanks to others that has helped me with decompressing, and compressing the bytecode.
 
 Thanks to the [**Init script**](https://github.com/plusgiant5/TaaprWareV2/blob/main/Release/bin/InitScript.lua) of [TaaprWareV2](https://github.com/plusgiant5/TaaprWareV2/) by plusgiant5
+
+Thanks to [**nhisoka**](https://github.com/nhisoka) for helping me out at the start of this project
