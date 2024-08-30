@@ -1,4 +1,5 @@
-// LUAU VERSION: 0.636
+// Luau Version: 0.640
+// https://github.com/luau-lang/luau/releases/tag/0.640
 
 // This file is part of the Luau programming language and is licensed under MIT License; see LICENSE.txt for details
 #pragma once

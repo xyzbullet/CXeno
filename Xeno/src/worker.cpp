@@ -317,14 +317,6 @@ RBXClient::RBXClient(DWORD processID) :
     write_memory<std::uintptr_t>(PlayerListManager->Self() + offsets::This, PlayerListManager->Self(), handle);
 }
 
-inline std::uintptr_t RBXClient::FetchDataModel() const
-{
-    std::uintptr_t fakeDataModel = read_memory<std::uintptr_t>(RenderView + 0x118, handle);
-    if (fakeDataModel == 0)
-        std::cerr << "Could not fetch datamodel, expect a crash\n";
-    return fakeDataModel + 0x190;
-}
-
 void RBXClient::execute(const std::string& source) const {
     std::uintptr_t dataModel_Address = FetchDataModel();
 
@@ -367,22 +359,6 @@ bool RBXClient::loadstring(const std::string& source, std::string& script_name, 
     return true;
 }
 
-void RBXClient::UnlockModule(const std::string& objectval_name) const {
-    std::uintptr_t scriptPtr = RBXClient::GetObjectValuePtr(objectval_name);
-    if (scriptPtr == 0)
-        return;
-
-    return Instance(scriptPtr, handle).UnlockModule();
-}
-
-std::string RBXClient::GetBytecode(const std::string& objectval_name) const {
-    std::uintptr_t scriptPtr = RBXClient::GetObjectValuePtr(objectval_name);
-    if (scriptPtr == 0)
-        return "";
-
-    return Instance(scriptPtr, handle).GetBytecode();
-}
-
 std::uintptr_t RBXClient::GetObjectValuePtr(const std::string& objectval_name) const
 {
     std::uintptr_t dataModel_Address = FetchDataModel();
@@ -403,15 +379,6 @@ std::uintptr_t RBXClient::GetObjectValuePtr(const std::string& objectval_name) c
         return 0;
 
     return read_memory<std::uintptr_t>(objectValue + offsets::ObjectValue, handle);
-}
-
-void RBXClient::SpoofInstance(const std::string& objectval_name, std::uintptr_t new_address) const
-{
-    std::uintptr_t instancePtr = RBXClient::GetObjectValuePtr(objectval_name);
-    if (instancePtr == 0)
-        return;
-
-    write_memory<std::uintptr_t>(instancePtr + offsets::This, new_address, handle);
 }
 
 std::vector<DWORD> GetRobloxClients()
@@ -475,8 +442,7 @@ std::uintptr_t GetRV(HANDLE handle)
         for (const std::filesystem::path& logPath : logFiles) {
             try {
                 std::filesystem::remove(logPath);
-            }
-            catch (const std::filesystem::filesystem_error& e) {
+            } catch (const std::filesystem::filesystem_error& e) {
                 lockedFiles.push_back(logPath);
             }
         }
@@ -508,10 +474,8 @@ std::uintptr_t GetRV(HANDLE handle)
 
             std::uintptr_t renderviewAddress = std::strtoull(renderview.c_str(), nullptr, 16);
             std::uintptr_t fakeDataModel = read_memory<std::uintptr_t>(renderviewAddress + 0x118, handle);
-            if (fakeDataModel != 0) {
-                //return fakeDataModel + 0x190; (real datamodel)
+            if (fakeDataModel != 0)
                 return renderviewAddress;
-            }
         }
 
         Sleep(1000);

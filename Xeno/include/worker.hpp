@@ -210,7 +210,7 @@ public:
 
     RBXClient(DWORD processID);
 
-    bool isProcessAlive() const {
+    inline bool isProcessAlive() const {
         DWORD exitCode;
         if (GetExitCodeProcess(handle, &exitCode)) {
             return exitCode == STILL_ACTIVE;
@@ -218,15 +218,41 @@ public:
         return false;
     }
 
-    inline std::uintptr_t FetchDataModel() const;
+    inline std::uintptr_t FetchDataModel() const {
+        std::uintptr_t fakeDataModel = read_memory<std::uintptr_t>(RenderView + 0x118, handle);
+        if (fakeDataModel == 0)
+            std::cerr << "Could not fetch datamodel, expect a crash\n";
+        return fakeDataModel + 0x190;
+    }
 
     void execute(const std::string& source) const;
     bool loadstring(const std::string& source, std::string& script_name, std::string& chunk_name) const;
 
-    void UnlockModule(const std::string& objectval_name) const;
-    std::string GetBytecode(const std::string& objectval_name) const;
+    void UnlockModule(const std::string& objectval_name) const {
+        std::uintptr_t scriptPtr = RBXClient::GetObjectValuePtr(objectval_name);
+        if (scriptPtr == 0)
+            return;
+
+        return Instance(scriptPtr, handle).UnlockModule();
+    }
+
+    std::string GetBytecode(const std::string& objectval_name) const {
+        std::uintptr_t scriptPtr = RBXClient::GetObjectValuePtr(objectval_name);
+        if (scriptPtr == 0)
+            return "";
+
+        return Instance(scriptPtr, handle).GetBytecode();
+    }
+
+    void SpoofInstance(const std::string& objectval_name, std::uintptr_t new_address) const {
+        std::uintptr_t instancePtr = RBXClient::GetObjectValuePtr(objectval_name);
+        if (instancePtr == 0)
+            return;
+
+        write_memory<std::uintptr_t>(instancePtr + offsets::This, new_address, handle);
+    }
+
     std::uintptr_t GetObjectValuePtr(const std::string& objectval_name) const;
-    void SpoofInstance(const std::string& objectval_name, std::uintptr_t new_address) const;
 };
 
 struct SimpleClient {
