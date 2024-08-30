@@ -11,6 +11,7 @@ It uses the common method of writing unsigned bytecode into a Roblox core module
 - Easily detected by Byfron
 - Multi-instance compatibility
 - Supports executing most scripts including Lua Armor scripts
+- Uses extremely fast virtual filesystem that syncs to the external
 - No in-game performance change & no high CPU usage
 - Custom functions like HttpSpy, getting the real address of a Instance, setting & getting globals across all clients, and spoofing instance
 
