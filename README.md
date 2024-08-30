@@ -14,6 +14,13 @@ It uses the common method of writing unsigned bytecode into a Roblox core module
 - No in-game performance change & no high CPU usage
 - Custom functions like HttpSpy, getting the real address of a Instance, setting & getting globals across all clients, and spoofing instance
 
+I have only used this project to learn C++ and a bit of C#.
+
+Do not expect the best code and memory management.
+You will see really bad code and design on the XenoUI C# WPF project since it was only made as a **prototype**.
+
+This executor has many vulnerabilities because only I have used **Xeno** and did not make a public release.
+
 Custom functions examples:
 ```lua
 -- get real address
@@ -48,13 +55,6 @@ The current method of adding **HttpGet** to "game" interferes with some scripts 
 getgenv().game = workspace.Parent
 ```
 This will remove **HttpGet** from game!
-
-I have only used this project to learn C++ and a bit of C#.
-
-Do not expect the best code and memory management.
-You will see really bad code and design on the XenoUI C# WPF project since it was only made as a **prototype**.
-
-This executor has many vulnerabilities because only I have used **Xeno** and did not make a public release.
 
 ### Preview
 <p>This is the UI of the first release:</p>
