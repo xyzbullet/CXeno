@@ -27,9 +27,9 @@ namespace offsets {
     constexpr std::uintptr_t ClassName = 0x8;
 
     // Scripts
-    constexpr std::uintptr_t ModuleScriptEmbedded = 0x158; // Embedded Source : Bytecode Container
-    constexpr std::uintptr_t ModuleFlags = 0x19c;
+    constexpr std::uintptr_t ModuleScriptEmbedded = 0x158;
     constexpr std::uintptr_t IsCoreScript = 0x1a0;
+    constexpr std::uintptr_t ModuleFlags = IsCoreScript - 0x4;
     constexpr std::uintptr_t LocalScriptEmbedded = 0x1b8;
 
     constexpr std::uintptr_t Bytecode = 0x10;
@@ -223,7 +223,7 @@ public:
     void execute(const std::string& source) const;
     bool loadstring(const std::string& source, std::string& script_name, std::string& chunk_name) const;
 
-    void UnlockModule(const std::string& script_name) const;
+    void UnlockModule(const std::string& objectval_name) const;
     std::string GetBytecode(const std::string& objectval_name) const;
     std::uintptr_t GetObjectValuePtr(const std::string& objectval_name) const;
     void SpoofInstance(const std::string& objectval_name, std::uintptr_t new_address) const;

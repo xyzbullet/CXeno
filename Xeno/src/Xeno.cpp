@@ -23,7 +23,7 @@ static void newClient(DWORD pid) {
     }
 }
 
-void init() {
+static void init() {
     while (true) {
         std::vector<DWORD> client_pids = GetRobloxClients();
         std::unordered_set<DWORD> current_pids(client_pids.begin(), client_pids.end());

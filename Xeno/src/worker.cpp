@@ -367,21 +367,12 @@ bool RBXClient::loadstring(const std::string& source, std::string& script_name, 
     return true;
 }
 
-void RBXClient::UnlockModule(const std::string& script_name) const {
-    std::uintptr_t dataModel_Address = FetchDataModel();
-
-    Instance DataModel(dataModel_Address, handle);
-    Instance* CoreGui = DataModel.FindFirstChild("CoreGui");
-
-    Instance* xenoFolder = CoreGui->FindFirstChild("Xeno");
-    if (!xenoFolder)
+void RBXClient::UnlockModule(const std::string& objectval_name) const {
+    std::uintptr_t scriptPtr = RBXClient::GetObjectValuePtr(objectval_name);
+    if (scriptPtr == 0)
         return;
 
-    Instance* cloned_module = xenoFolder->FindFirstChild(script_name);
-    if (cloned_module->Self() == 0)
-        return;
-
-    cloned_module->UnlockModule();
+    return Instance(scriptPtr, handle).UnlockModule();
 }
 
 std::string RBXClient::GetBytecode(const std::string& objectval_name) const {

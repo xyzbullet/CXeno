@@ -227,6 +227,7 @@ local base64 = {
 }
 
 local Bridge, ProcessID = {serverUrl = "http://localhost:19283"}, nil
+local _require = require
 
 local function sendRequest(options, timeout)
 	timeout = tonumber(timeout) or math.huge
@@ -480,7 +481,7 @@ function Bridge:loadstring(source, chunkName)
 		while task.wait() do
 			local required = nil
 			pcall(function()
-				required = require(coreModule)
+				required = _require(coreModule)
 			end)
 
 			if type(required) == "table" and required[chunkName] and type(required[chunkName]) == "function" then -- add better checks
@@ -748,8 +749,26 @@ function Xeno.Xeno.SetGlobal(global_name, value)
 		['t'] = "s",
 		['n'] = global_name,
 		['v'] = tostring(value),
-		['vt'] = "string"
+		['vt'] = valueT
 	}) ~= nil
+end
+
+function Xeno.require(moduleScript)
+	assert(typeof(moduleScript) == "Instance", "Attempted to call require with invalid argument(s). ", 2)
+	assert(moduleScript.ClassName == "ModuleScript", "Attempted to call require with invalid argument(s). ", 2)
+
+	local objectValue = Instance.new("ObjectValue", objectPointerContainer)
+	objectValue.Name = HttpService:GenerateGUID(false)
+	objectValue.Value = moduleScript
+
+	Bridge:InternalRequest({
+		['c'] = "um",
+		['cn'] = objectValue.Name,
+		['pid'] = tostring(ProcessID)
+	})
+	objectValue:Destroy()
+
+	return _require(moduleScript)
 end
 
 function Xeno.loadstring(source, chunkName)
@@ -1460,67 +1479,70 @@ function Xeno.rconsoleinput(text)
 end
 Xeno.consoleinput = Xeno.rconsoleinput
 
+local renv = {
+	print = print, warn = warn, error = error, assert = assert, collectgarbage = collectgarbage, require = require,
+	select = select, tonumber = tonumber, tostring = tostring, type = type, xpcall = xpcall,
+	pairs = pairs, next = next, ipairs = ipairs, newproxy = newproxy, rawequal = rawequal, rawget = rawget,
+	rawset = rawset, rawlen = rawlen, gcinfo = gcinfo,
+
+	coroutine = {
+		create = coroutine.create, resume = coroutine.resume, running = coroutine.running,
+		status = coroutine.status, wrap = coroutine.wrap, yield = coroutine.yield,
+	},
+
+	bit32 = {
+		arshift = bit32.arshift, band = bit32.band, bnot = bit32.bnot, bor = bit32.bor, btest = bit32.btest,
+		extract = bit32.extract, lshift = bit32.lshift, replace = bit32.replace, rshift = bit32.rshift, xor = bit32.xor,
+	},
+
+	math = {
+		abs = math.abs, acos = math.acos, asin = math.asin, atan = math.atan, atan2 = math.atan2, ceil = math.ceil,
+		cos = math.cos, cosh = math.cosh, deg = math.deg, exp = math.exp, floor = math.floor, fmod = math.fmod,
+		frexp = math.frexp, ldexp = math.ldexp, log = math.log, log10 = math.log10, max = math.max, min = math.min,
+		modf = math.modf, pow = math.pow, rad = math.rad, random = math.random, randomseed = math.randomseed,
+		sin = math.sin, sinh = math.sinh, sqrt = math.sqrt, tan = math.tan, tanh = math.tanh
+	},
+
+	string = {
+		byte = string.byte, char = string.char, find = string.find, format = string.format, gmatch = string.gmatch,
+		gsub = string.gsub, len = string.len, lower = string.lower, match = string.match, pack = string.pack,
+		packsize = string.packsize, rep = string.rep, reverse = string.reverse, sub = string.sub,
+		unpack = string.unpack, upper = string.upper,
+	},
+
+	table = {
+		concat = table.concat, insert = table.insert, pack = table.pack, remove = table.remove, sort = table.sort,
+		unpack = table.unpack,
+	},
+
+	utf8 = {
+		char = utf8.char, charpattern = utf8.charpattern, codepoint = utf8.codepoint, codes = utf8.codes,
+		len = utf8.len, nfdnormalize = utf8.nfdnormalize, nfcnormalize = utf8.nfcnormalize,
+	},
+
+	os = {
+		clock = os.clock, date = os.date, difftime = os.difftime, time = os.time,
+	},
+
+	delay = delay, elapsedTime = elapsedTime, spawn = spawn, tick = tick, time = time, typeof = typeof,
+	UserSettings = UserSettings, version = version, wait = wait,
+
+	task = {
+		defer = task.defer, delay = task.delay, spawn = task.spawn, wait = task.wait,
+	},
+
+	debug = {
+		traceback = debug.traceback, profilebegin = debug.profilebegin, profileend = debug.profileend,
+	},
+
+	game = game, workspace = workspace,
+
+	getmetatable = getmetatable, setmetatable = setmetatable
+}
+table.freeze(renv)
+
 function Xeno.getrenv()
-	return {
-		print = print, warn = warn, error = error, assert = assert, collectgarbage = collectgarbage, require = require,
-		select = select, tonumber = tonumber, tostring = tostring, type = type, xpcall = xpcall,
-		pairs = pairs, next = next, ipairs = ipairs, newproxy = newproxy, rawequal = rawequal, rawget = rawget,
-		rawset = rawset, rawlen = rawlen, gcinfo = gcinfo,
-
-		coroutine = {
-			create = coroutine.create, resume = coroutine.resume, running = coroutine.running,
-			status = coroutine.status, wrap = coroutine.wrap, yield = coroutine.yield,
-		},
-
-		bit32 = {
-			arshift = bit32.arshift, band = bit32.band, bnot = bit32.bnot, bor = bit32.bor, btest = bit32.btest,
-			extract = bit32.extract, lshift = bit32.lshift, replace = bit32.replace, rshift = bit32.rshift, xor = bit32.xor,
-		},
-
-		math = {
-			abs = math.abs, acos = math.acos, asin = math.asin, atan = math.atan, atan2 = math.atan2, ceil = math.ceil,
-			cos = math.cos, cosh = math.cosh, deg = math.deg, exp = math.exp, floor = math.floor, fmod = math.fmod,
-			frexp = math.frexp, ldexp = math.ldexp, log = math.log, log10 = math.log10, max = math.max, min = math.min,
-			modf = math.modf, pow = math.pow, rad = math.rad, random = math.random, randomseed = math.randomseed,
-			sin = math.sin, sinh = math.sinh, sqrt = math.sqrt, tan = math.tan, tanh = math.tanh
-		},
-
-		string = {
-			byte = string.byte, char = string.char, find = string.find, format = string.format, gmatch = string.gmatch,
-			gsub = string.gsub, len = string.len, lower = string.lower, match = string.match, pack = string.pack,
-			packsize = string.packsize, rep = string.rep, reverse = string.reverse, sub = string.sub,
-			unpack = string.unpack, upper = string.upper,
-		},
-
-		table = {
-			concat = table.concat, insert = table.insert, pack = table.pack, remove = table.remove, sort = table.sort,
-			unpack = table.unpack,
-		},
-
-		utf8 = {
-			char = utf8.char, charpattern = utf8.charpattern, codepoint = utf8.codepoint, codes = utf8.codes,
-			len = utf8.len, nfdnormalize = utf8.nfdnormalize, nfcnormalize = utf8.nfcnormalize,
-		},
-
-		os = {
-			clock = os.clock, date = os.date, difftime = os.difftime, time = os.time,
-		},
-
-		delay = delay, elapsedTime = elapsedTime, spawn = spawn, tick = tick, time = time, typeof = typeof,
-		UserSettings = UserSettings, version = version, wait = wait,
-
-		task = {
-			defer = task.defer, delay = task.delay, spawn = task.spawn, wait = task.wait,
-		},
-
-		debug = {
-			traceback = debug.traceback, profilebegin = debug.profilebegin, profileend = debug.profileend,
-		},
-
-		game = game, workspace = workspace,
-
-		getmetatable = getmetatable, setmetatable = setmetatable
-	}
+	return renv
 end
 
 function Xeno.isexecutorclosure(func)
@@ -1979,7 +2001,7 @@ local function listen(coreModule)
 	while task.wait() do
 		local execution_table
 		pcall(function()
-			execution_table = require(coreModule)
+			execution_table = _require(coreModule)
 		end)
 		if type(execution_table) == "table" and execution_table["x e n o"] and (not execution_table.__executed) and coreModule.Parent == scriptsContainer then
 			task.spawn(execution_table["x e n o"])

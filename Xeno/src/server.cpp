@@ -533,8 +533,8 @@ static void serve(Response& res, json& body) {
 		}
 
 		std::string guid = body["gd"];
-		std::lock_guard<std::mutex> lock(clientsMtx);
 
+		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
 			if (client->GUID == guid) {
 				res.status = 200;
@@ -583,6 +583,31 @@ static void serve(Response& res, json& body) {
 
 		res.status = 400;
 		res.set_content(R"({"error":"Invalid globals request"})", "application/json");
+		return;
+	}
+
+	if (cType == "um") { // unlock module
+		if (!body.contains("cn") /*instance container name*/ || !body.contains("pid") /*process id*/) {
+			res.status = 400;
+			res.set_content(R"({"error":"Missing required fields"})", "application/json");
+			return;
+		}
+
+		std::string containerName = body["cn"];
+		std::string pid = body["pid"];
+
+		std::lock_guard<std::mutex> lock(clientsMtx);
+		for (const auto& client : Clients) {
+			if (std::to_string(client->PID) == pid) {
+				client->UnlockModule(containerName);
+
+				res.status = 200;
+				return;
+			}
+		}
+
+		res.status = 400;
+		res.set_content(R"({"error":"Client with the given PID was not found"})", "application/json");
 		return;
 	}
 
