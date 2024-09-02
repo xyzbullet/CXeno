@@ -1,3 +1,7 @@
+// License: MIT
+// Url: https://github.com/tobiaslocker/base64/blob/master/include/base64.hpp
+
+
 #ifndef BASE64_HPP_
 #define BASE64_HPP_
 

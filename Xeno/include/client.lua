@@ -4,6 +4,7 @@ local XENO_UNIQUE = "%XENO_UNIQUE_ID%"
 
 local HttpService, UserInputService, InsertService = game:FindService("HttpService"), game:FindService("UserInputService"), game:FindService("InsertService")
 local RunService, CoreGui = game:FindService("RunService"), game:FindService("CoreGui")
+local VirtualInputManager = Instance.new("VirtualInputManager")
 
 if CoreGui:FindFirstChild("Xeno") then return end
 
@@ -31,7 +32,7 @@ for _, descendant in CoreGui.RobloxGui.Modules:GetDescendants() do
 	end
 end
 
-shared.Xeno = Xeno -- unprotected for sharing across all scripts (easily detected)
+_G.Xeno = Xeno -- unprotected for sharing across all scripts (easily detected)
 
 local libs = {
 	{
@@ -50,10 +51,6 @@ local libs = {
 
 if script.Name == "VRNavigation" then
 	print("[XENO]: Used ingame method. When you leave the game it might crash!")
-	local VirtualInputManager = Instance.new("VirtualInputManager")
-	VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Escape, false, game)
-	VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Escape, false, game)
-	VirtualInputManager:Destroy()
 end
 
 local lookupValueToCharacter = buffer.create(64)
@@ -426,7 +423,7 @@ function Bridge:SyncFiles()
 	local unsuccessfulSave = {}
 
 	local success, r = pcall(function()
-		for _, unsavedFile in self.virtualFilesManagement.unsaved do -- table::options
+		for _, unsavedFile in self.virtualFilesManagement.unsaved do
 			local func = unsavedFile.func
 			local argX = unsavedFile.x
 			local argY = unsavedFile.y
@@ -529,8 +526,11 @@ function Bridge:request(options)
 	})
 	if result then
 		result = HttpService:JSONDecode(result)
-		if result['r'] ~= "OK" then
+		if result['r'] ~= "OK" and not Enum.HttpError[result['r']] then
 			result['r'] = "Unknown"
+		end
+		if result['b64'] then
+			result['b'] = base64.decode(result['b'])
 		end
 		return {
 			Success = tonumber(result['c']) and tonumber(result['c']) > 200 and tonumber(result['c']) < 300,
@@ -621,7 +621,7 @@ end
 task.spawn(function()
 	while true do
 		Bridge:SyncFiles()
-		task.wait(1)
+		task.wait(.65)
 	end
 end)
 
@@ -902,7 +902,7 @@ end
 gameProxy.__metatable = getmetatable(workspace.Parent)
 
 function Xeno.getgenv()
-	return shared.Xeno
+	return _G.Xeno
 end
 
 -- / Filesystem \ --
@@ -1073,6 +1073,27 @@ function Xeno.delfile(path)
 	})
 end
 
+function Xeno.getcustomasset(path)
+	assert(type(path) == "string", "invalid argument #1 to 'getcustomasset' (string expected, got " .. type(path) .. ") ", 2)
+	local unsaved, i, _break = getUnsaved(Bridge.writefile, path), nil
+	while unsaved do 
+		unsaved, i = getUnsaved(Bridge.writefile, path)
+		task.wait(.1)
+		pcall(function()
+			if Bridge:readfile(path) == Bridge.virtualFilesManagement.unsaved[i].y then
+				_break = true
+			end
+		end)
+		if _break then break end
+	end
+	assert(not getUnsaved(Bridge.delfile, path), "The file was recently deleted")
+	return Bridge:InternalRequest({
+		['c'] = "cas",
+		['p'] = path,
+		['pid'] = ProcessID
+	})
+end
+
 -- / Libs \ --
 local function InternalGet(url)
 	local result, clock = nil, tick()
@@ -1217,11 +1238,13 @@ for name, func in drawingFunctions do
 end
 
 -- / Miscellaneous \ --
+local _saveinstance = nil
 function Xeno.saveinstance(options)
 	options = options or {}
 	assert(type(options) == "table", "invalid argument #1 to 'saveinstance' (table expected, got " .. type(options) .. ") ", 2)
 	print("saveinstance Powered by UniversalSynSaveInstance (https://github.com/luau/UniversalSynSaveInstance)")
-	return Xeno.loadstring(Xeno.HttpGet("https://raw.githubusercontent.com/luau/SynSaveInstance/main/saveinstance.luau", true), "saveinstance")()(options)
+	_saveinstance = _saveinstance or Xeno.loadstring(Xeno.HttpGet("https://raw.githubusercontent.com/luau/SynSaveInstance/main/saveinstance.luau", true), "saveinstance")()
+	return _saveinstance(options)
 end
 Xeno.savegame = Xeno.saveinstance
 
@@ -1718,20 +1741,41 @@ function Xeno.getconnections(event)
 	return connections
 end
 
-function Xeno.hookfunction(func, rep) -- hooks global function only
-	local env = getfenv(2)
-	assert(type(env) == "table", "Environment is not a table", 2)
-	for i, v in pairs(env) do
+function Xeno.hookfunction(func, rep)
+	for i,v in pairs(getfenv()) do
 		if v == func then
-			env[i] = rep
-			return rep
+			getfenv()[i] = rep
 		end
 	end
 end
 Xeno.replaceclosure = Xeno.hookfunction
 
-function Xeno.cloneref(a)
-	local s, x = pcall(function() return workspace.Parent.Clone(a) end) return s and x or a
+function Xeno.cloneref(reference)
+	if workspace.Parent:FindFirstChild(reference.Name)  or reference.Parent == workspace.Parent then 
+		return reference
+	else
+		local class = reference.ClassName
+		local cloned = Instance.new(class)
+		local mt = {
+			__index = reference,
+			__newindex = function(t, k, v)
+
+				if k == "Name" then
+					reference.Name = v
+				end
+				rawset(t, k, v)
+			end
+		}
+		local proxy = setmetatable({}, mt)
+		return proxy
+	end
+end
+
+function Xeno.compareinstances(x, y)
+	if type(getmetatable(y)) == "table" then
+		return x.ClassName == y.ClassName
+	end
+	return false
 end
 
 function Xeno.gethui()
@@ -1744,6 +1788,27 @@ function Xeno.isnetworkowner(part)
 		return false
 	end
 	return part.ReceiveAge == 0
+end
+
+function Xeno.deepclone(object)
+	local lookup_table = {}
+	local function Copy(object)
+		if type(object) ~= 'table' then
+			return object
+		elseif lookup_table[object] then
+			return lookup_table[object]
+		end
+
+		local new_table = {}
+		lookup_table[object] = new_table
+		for key, value in pairs(object) do 
+			new_table[Copy(key)] = Copy(value)
+		end
+
+		return setmetatable(new_table, getmetatable(object))
+	end
+
+	return Copy(object)
 end
 
 Xeno.debug = table.clone(debug) -- the debug funcs was not by me (.rizve) credits goes to the person that made it
@@ -1915,7 +1980,7 @@ end
 Xeno.debug.setmetatable = setmetatable
 
 function Xeno.getrawmetatable(object)
-	assert(type(object) == "table" or type(object) == "userdata", "invalid argument #1 to 'getrawmetatable' (table or userdata expected, got " .. type(object) .. ") ", 2)
+	assert(type(object) == "table" or type(object) == "userdata", "invalid argument #1 to 'getrawmetatable' (table or userdata expected, got " .. type(object) .. ")", 2)
 	local raw_mt = Xeno.debug.getmetatable(object)
 	if raw_mt and raw_mt.__metatable then
 		raw_mt.__metatable = nil 
@@ -1927,8 +1992,8 @@ function Xeno.getrawmetatable(object)
 end
 
 function Xeno.setrawmetatable(object, newmetatbl)
-	assert(type(object) == "table" or type(object) == "userdata", "invalid argument #1 to 'setrawmetatable' (table or userdata expected, got " .. type(object) .. ") ", 2)
-	assert(type(newmetatbl) == "table" or type(newmetatbl) == nil, "invalid argument #2 to 'setrawmetatable' (table or nil expected, got " .. type(object) .. ") ", 2)
+	assert(type(object) == "table" or type(object) == "userdata", "invalid argument #1 to 'setrawmetatable' (table or userdata expected, got " .. type(object) .. ")", 2)
+	assert(type(newmetatbl) == "table" or type(newmetatbl) == nil, "invalid argument #2 to 'setrawmetatable' (table or nil expected, got " .. type(object) .. ")", 2)
 	local raw_mt = Xeno.debug.getmetatable(object)
 	if raw_mt and raw_mt.__metatable then
 		local old_metatable = raw_mt.__metatable
@@ -1945,9 +2010,9 @@ function Xeno.setrawmetatable(object, newmetatbl)
 end
 
 function Xeno.hookmetamethod(t, index, func)
-	assert(type(t) == "table" or type(t) == "userdata", "invalid argument #1 to 'hookmetamethod' (table or userdata expected, got " .. type(t) .. ") ", 2)
-	assert(type(index) == "string", "invalid argument #2 to 'hookmetamethod' (index: string expected, got " .. type(t) .. ") ", 2)
-	assert(type(func) == "function", "invalid argument #3 to 'hookmetamethod' (function expected, got " .. type(t) .. ") ", 2)
+	assert(type(t) == "table" or type(t) == "userdata", "invalid argument #1 to 'hookmetamethod' (table or userdata expected, got " .. type(t) .. ")", 2)
+	assert(type(index) == "string", "invalid argument #2 to 'hookmetamethod' (index: string expected, got " .. type(t) .. ")", 2)
+	assert(type(func) == "function", "invalid argument #3 to 'hookmetamethod' (function expected, got " .. type(t) .. ")", 2)
 	local o = t
 	local mt = Xeno.debug.getmetatable(t)
 	mt[index] = func
@@ -1958,7 +2023,7 @@ end
 local fpscap = math.huge
 function Xeno.setfpscap(cap)
 	cap = tonumber(cap)
-	assert(type(cap) == "number", "invalid argument #1 to 'setfpscap' (number expected, got " .. type(cap) .. ") ", 2)
+	assert(type(cap) == "number", "invalid argument #1 to 'setfpscap' (number expected, got " .. type(cap) .. ")", 2)
 	if cap < 1 then cap = math.huge end
 	fpscap = cap
 end
@@ -1973,6 +2038,90 @@ function Xeno.getfpscap()
 	return fpscap
 end
 
+function Xeno.mouse1click(x, y)
+	x = x or 0
+	y = y or 0
+
+	VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, workspace.Parent, false)
+	task.wait()
+	VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, workspace.Parent, false)
+end
+
+function Xeno.mouse1press(x, y)
+	x = x or 0
+	y = y or 0
+
+	VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, workspace.Parent, false)
+end
+
+function Xeno.mouse1release(x, y)
+	x = x or 0
+	y = y or 0
+
+	VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, workspace.Parent, false)
+end
+
+function Xeno.mouse2click(x, y)
+	x = x or 0
+	y = y or 0
+
+	VirtualInputManager:SendMouseButtonEvent(x, y, 1, true, workspace.Parent, false)
+	task.wait()
+	VirtualInputManager:SendMouseButtonEvent(x, y, 1, false, workspace.Parent, false)
+end
+
+function Xeno.mouse2press(x, y)
+	x = x or 0
+	y = y or 0
+	
+	VirtualInputManager:SendMouseButtonEvent(x, y, 1, true, workspace.Parent, false)
+end
+
+function Xeno.mouse2release(x, y)
+	x = x or 0
+	y = y or 0
+	
+	VirtualInputManager:SendMouseButtonEvent(x, y, 1, false, workspace.Parent, false)
+end
+
+function Xeno.mousescroll(x, y, z)
+	VirtualInputManager:SendMouseWheelEvent(x or 0, y or 0, z or false, workspace.Parent)
+end
+
+function Xeno.mousemoverel(x, y)
+	x = x or 0
+	y = y or 0
+	
+	local vpSize = workspace.CurrentCamera.ViewportSize
+	local x = vpSize.X * x
+	local y = vpSize.Y * y
+	
+	VirtualInputManager:SendMouseMoveEvent(x, y, workspace.Parent)
+end
+
+function Xeno.mousemoveabs(x, y)
+	x = x or 0
+	y = y or 0
+	
+	VirtualInputManager:SendMouseMoveEvent(x, y, workspace.Parent)
+end
+
+function Xeno.getscriptclosure(s)
+	return function()
+		return table.clone(require(s))
+	end
+end
+Xeno.getscriptfunction = Xeno.getscriptclosure
+
+function Xeno.isscriptable(object, property)
+	if object and typeof(object) == 'Instance' then
+		local success, result = pcall(function()
+			return object[property] ~= nil
+		end)
+		return success and result
+	end
+	return false
+end
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 

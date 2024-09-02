@@ -92,6 +92,17 @@ static HMODULE getModule() {
     return hModule;
 }
 
+static std::filesystem::path GetHandlePath(HANDLE processHandle) {
+    char buffer[MAX_PATH];
+    DWORD bufferSize = sizeof(buffer);
+
+    if (QueryFullProcessImageNameA(processHandle, 0, buffer, &bufferSize)) {
+        return std::filesystem::path(buffer);
+    }
+
+    return {};
+}
+
 static std::string generateGUID() {
     GUID guid;
     HRESULT result = CoCreateGuid(&guid);
@@ -104,11 +115,11 @@ static std::string generateGUID() {
     snprintf(guidStr, sizeof(guidStr), "%08lX-%04X-%04X-%04X-%012llX", guid.Data1,
         guid.Data2, guid.Data3, (guid.Data4[0] << 8) | guid.Data4[1],
         ((static_cast<unsigned long long>(guid.Data4[2]) << 40) |
-            (static_cast<unsigned long long>(guid.Data4[3]) << 32) |
-            (static_cast<unsigned long long>(guid.Data4[4]) << 24) |
-            (static_cast<unsigned long long>(guid.Data4[5]) << 16) |
-            (static_cast<unsigned long long>(guid.Data4[6]) << 8) |
-            static_cast<unsigned long long>(guid.Data4[7])));
+         (static_cast<unsigned long long>(guid.Data4[3]) << 32) |
+         (static_cast<unsigned long long>(guid.Data4[4]) << 24) |
+         (static_cast<unsigned long long>(guid.Data4[5]) << 16) |
+         (static_cast<unsigned long long>(guid.Data4[6]) << 8)  |
+          static_cast<unsigned long long>(guid.Data4[7])));
 
     return std::string(guidStr);
 }
@@ -130,6 +141,7 @@ RBXClient::RBXClient(DWORD processID) :
         return;
     }
 
+    ClientDir = GetHandlePath(handle).parent_path();
     GUID = generateGUID();
 
     PROCESS_MEMORY_COUNTERS memory_counter;
@@ -218,7 +230,7 @@ RBXClient::RBXClient(DWORD processID) :
     }
 
     replaceString(clientScript, "%XENO_UNIQUE_ID%", GUID);
-    replaceString(clientScript, "%XENO_VERSION%", "1.0.0");
+    replaceString(clientScript, "%XENO_VERSION%", "1.0.1");
 
     std::string PatchScriptSource = "--!native\n--!optimize 1\n--!nonstrict\nlocal a={}local b=game:GetService(\"ContentProvider\")local function c(d)local e,f=d:find(\"%.\")local g=d:sub(f+1)if g:sub(-1)~=\"/\"then g=g..\"/\"end;return g end;local d=b.BaseUrl;local g=c(d)local h=string.format(\"https://games.%s\",g)local i=string.format(\"https://apis.rcs.%s\",g)local j=string.format(\"https://apis.%s\",g)local k=string.format(\"https://accountsettings.%s\",g)local l=string.format(\"https://gameinternationalization.%s\",g)local m=string.format(\"https://locale.%s\",g)local n=string.format(\"https://users.%s\",g)local o={GAME_URL=h,RCS_URL=i,APIS_URL=j,ACCOUNT_SETTINGS_URL=k,GAME_INTERNATIONALIZATION_URL=l,LOCALE_URL=m,ROLES_URL=n}setmetatable(a,{__newindex=function(p,q,r)end,__index=function(p,r)return o[r]end})return a";
 
@@ -335,7 +347,7 @@ void RBXClient::execute(const std::string& source) const {
     if (!xenoModule)
         return;
 
-    xenoModule->SetBytecode(Compile("return{[\"x e n o\"]=function(...)function c(x,y)z=x;for i,v in y do z[i]=v;end;return z;end;setfenv(1,c(getfenv(1),shared.Xeno))setfenv(0,c(getfenv(0),shared.Xeno))for i,f in shared.Xeno do getfenv(0)[i] = f;getfenv(1)[i]=f;end;setmetatable(shared.Xeno,{__newindex=function(t,i,v)rawset(t,i,v);for i,v in t do getfenv()[i]=v;end;end,__index=function(t,val)return rawget(t,val);end});" + source + "\nend};"), true);
+    xenoModule->SetBytecode(Compile("return{[\"x e n o\"]=function(...)function c(x,y)z=x;for i,v in y do z[i]=v;end;return z;end;setfenv(1,c(getfenv(1),_G.Xeno))setfenv(0,c(getfenv(0),_G.Xeno))for i,f in _G.Xeno do getfenv(0)[i] = f;getfenv(1)[i]=f;end;setmetatable(_G.Xeno,{__newindex=function(t,i,v)rawset(t,i,v);for i,v in t do getfenv()[i]=v;end;end,__index=function(t,val)return rawget(t,val);end});" + source + "\nend};"), true);
     xenoModule->UnlockModule();
 }
 
@@ -353,7 +365,7 @@ bool RBXClient::loadstring(const std::string& source, std::string& script_name, 
     if (cloned_module->Self() == 0)
         return false;
 
-    cloned_module->SetBytecode(Compile("return{[ [[" + chunk_name + "]] ] = function(...)function c(x,y)z=x;for i,v in y do z[i]=v;end;return z;end;setfenv(1,c(getfenv(1),shared.Xeno))setfenv(0,c(getfenv(0),shared.Xeno))for i,f in shared.Xeno do getfenv(0)[i] = f;getfenv(1)[i]=f;end;setmetatable(shared.Xeno,{__newindex=function(t,i,v)rawset(t,i,v);for i,v in t do getfenv()[i]=v;end;end,__index=function(t,val)return rawget(t,val);end});" + source + "\nend};"), true);
+    cloned_module->SetBytecode(Compile("return{[ [[" + chunk_name + "]] ] = function(...)function c(x,y)z=x;for i,v in y do z[i]=v;end;return z;end;setfenv(1,c(getfenv(1),_G.Xeno))setfenv(0,c(getfenv(0),_G.Xeno))for i,f in _G.Xeno do getfenv(0)[i] = f;getfenv(1)[i]=f;end;setmetatable(_G.Xeno,{__newindex=function(t,i,v)rawset(t,i,v);for i,v in t do getfenv()[i]=v;end;end,__index=function(t,val)return rawget(t,val);end});" + source + "\nend};"), true);
     cloned_module->UnlockModule();
 
     return true;
@@ -406,12 +418,8 @@ std::vector<DWORD> GetRobloxClients()
 
 std::uintptr_t GetRV(HANDLE handle)
 {
-    std::filesystem::path localAppData = std::filesystem::temp_directory_path()
-        .parent_path()
-        .parent_path();
-
-    std::filesystem::path logs = localAppData /= "Roblox";
-    logs /= "logs";
+    std::filesystem::path localAppData = std::filesystem::temp_directory_path().parent_path().parent_path();
+    std::filesystem::path logs = localAppData / "Roblox" / "logs";
 
     if (!std::filesystem::is_directory(logs)) {
         std::cerr << "[!] Roblox logs directory not found\n";

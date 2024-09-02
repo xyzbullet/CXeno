@@ -203,10 +203,11 @@ private:
     std::uintptr_t RenderView{};
 public:
     std::string Username = "N/A";
-    std::string GUID = "";
+    std::string GUID;
     DWORD PID;
 
-    std::string TeleportQueue; // for queue_on_teleport
+    std::string TeleportQueue;
+    std::filesystem::path ClientDir;
 
     RBXClient(DWORD processID);
 

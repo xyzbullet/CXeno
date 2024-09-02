@@ -10,6 +10,7 @@ using namespace httplib;
 using json = nlohmann::json;
 
 #include "server/server.h"
+#include "utils/base64.hpp"
 #include "worker.hpp"
 
 std::vector<std::shared_ptr<RBXClient>> Clients;
@@ -82,7 +83,7 @@ static void serve(Response& res, json& body) {
 		buffer << file.rdbuf();
 
 		res.status = 200;
-		res.set_content(buffer.str(), "application/json");
+		res.set_content(buffer.str(), "text/plain");
 		return;
 	}
 
@@ -252,6 +253,54 @@ static void serve(Response& res, json& body) {
 		return;
 	}
 
+	if (cType == "cas") { // get custom asset
+		if (!body.contains("p") /*path*/ || !body.contains("pid") /*process id*/) {
+			res.status = 400;
+			res.set_content(R"({"error":"Missing required fields"})", "application/json");
+			return;
+		}
+
+		std::string path = body["p"];
+		if (!withinDirectory(std::filesystem::current_path(), path)) {
+			res.status = 400;
+			res.set_content(R"({"error":"Attempt to escape directory"})", "application/json");
+			return;
+		}
+
+		std::filesystem::path sourcePath = std::filesystem::current_path() / path;
+
+		if (!std::filesystem::is_regular_file(sourcePath)) {
+			res.status = 400;
+			res.set_content(R"({"error":"Given path is not a normal file"})", "application/json");
+			return;
+		}
+
+		std::string pid = body["pid"];
+		std::lock_guard<std::mutex> lock(clientsMtx);
+		for (const auto& client : Clients) {
+			if (std::to_string(client->PID) == pid) {
+				std::filesystem::path contentDir = client->ClientDir / "content";
+
+				if (!std::filesystem::is_directory(contentDir)) {
+					res.status = 400;
+					res.set_content(R"({"error":"directory 'content' does not exist or is not a directory"})", "application/json");
+					return;
+				}
+
+				std::filesystem::path destinationPath = contentDir / sourcePath.filename();
+				std::filesystem::copy_file(sourcePath, destinationPath, std::filesystem::copy_options::overwrite_existing);
+
+				res.status = 200;
+				res.set_content("rbxasset://" + destinationPath.filename().string(), "text/plain");
+				return;
+			}
+		}
+
+		res.status = 400;
+		res.set_content(R"({"error":"Client with the given PID was not found"})", "application/json");
+		return;
+	}
+
 	if (cType == "rq") { // request
 		if (!body.contains("l") /*url*/ || !body.contains("m") /*method*/ || !body.contains("b") /*body*/ || !body.contains("h") /*headers*/) {
 			res.status = 400;
@@ -304,7 +353,6 @@ static void serve(Response& res, json& body) {
 
 		if (proxiedRes) {
 			json responseJ;
-			responseJ["b"] = proxiedRes->body;
 			responseJ["c"] = proxiedRes->status;
 			responseJ["r"] = proxiedRes->reason;
 			responseJ["v"] = proxiedRes->version;
@@ -314,6 +362,15 @@ static void serve(Response& res, json& body) {
 				rHeadersJ[header.first] = header.second;
 			}
 			responseJ["h"] = rHeadersJ;
+
+			auto contentType = proxiedRes->get_header_value("Content-Type");
+			if (contentType.find("application/json") == std::string::npos &&
+				contentType.find("text/") == std::string::npos) { // convert binary files to base 64
+				responseJ["b"] = base64::to_base64(proxiedRes->body);
+				responseJ["b64"] = true;
+			} else {
+				responseJ["b"] = proxiedRes->body;
+			}
 
 			res.status = 200;
 			res.set_content(responseJ.dump(), "application/json");
@@ -645,7 +702,7 @@ void setup_connection()
 		json body;
 		try {
 			body = json::parse(req.body);
-		} catch (json::parse_error& e) {
+		} catch (json::parse_error&) {
 			res.status = 400;
 			res.set_content(R"({"error":"Invalid JSON"})", "application/json");
 			return;
