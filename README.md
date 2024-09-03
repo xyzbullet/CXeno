@@ -42,7 +42,7 @@ Xeno.SetGlobal("__test", { -- can only set table, number, and string as a global
 	["test_text"] = "hello, world!"
 })
 
-local t = Xeno.GetGlobal(__test) -- the table we just set
+local t = Xeno.GetGlobal("__test") -- the table we just set
 print(t.test_text) -- hello, world!
 
 -- other
