@@ -8,7 +8,6 @@ It uses the common method of writing unsigned bytecode into a Roblox core module
 
 ## Features
 - Fast execution
-- Easily detected by Byfron
 - Multi-instance compatibility
 - Supports executing most scripts including Lua Armor scripts
 - Uses extremely fast virtual filesystem that syncs to the external
@@ -58,8 +57,8 @@ getgenv().game = workspace.Parent
 This will remove **HttpGet** from game!
 
 ### Preview
-<p>This is the UI of the first release:</p>
-<img src="Preview.png" alt="Preview" width="600" style="box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(255, 255, 255, 0.3);" />
+<p>This is the UI of the current version (v1.0.1):</p>
+<img src="v1.0.1-Preview.png" alt="Preview" width="600" style="box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(255, 255, 255, 0.3);" />
 <p>The Current UNC is <span style="color: green;">73%</span></p>
 <img src="v1.0.1-UNC.png" alt="Preview" width="600" style="box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(255, 255, 255, 0.3);" />
 
