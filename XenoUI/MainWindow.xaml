@@ -54,7 +54,8 @@
         <Grid>
             <WrapPanel>
                 <Image Source="/Resources/Images/icon.ico" Margin="10,0,0,0"/>
-                <TextBlock Foreground="White" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" FontFamily="Segoe UI Black">Xeno</TextBlock>
+                <TextBlock Foreground="White" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" FontFamily="Segoe UI Black" ToolTip="Made by .rizve on Discord (https://rizve.us.to)">Xeno</TextBlock>
+                <TextBlock Foreground="White" Margin="3,0,0,0" VerticalAlignment="Center" FontFamily="Segoe UI Semibold">v1.01</TextBlock>
             </WrapPanel>
             <StackPanel Orientation="Horizontal" 
                         HorizontalAlignment="Right">
@@ -139,7 +140,7 @@
                 BorderBrush="Transparent"
                 Cursor="Hand"
                 Click="buttonShowScripts_Click"
-                Visibility="Hidden">
+                Visibility="Visible">
             <Image Source="/Resources/Images/scripts.png"
                    Width="30"
                    Height="30" ToolTip="View Scripts" />

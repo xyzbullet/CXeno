@@ -1,4 +1,7 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,7 +16,6 @@ namespace XenoUI
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
 		public struct ClientInfo
 		{
-			[MarshalAs(UnmanagedType.LPStr)]
 			public string name;
 			public int id;
 		}
@@ -26,156 +28,89 @@ namespace XenoUI
 
 		[DllImport("Xeno.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
 		private static extern void Execute(byte[] scriptSource, string[] clientUsers, int numUsers);
+
 		[DllImport("Xeno.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
 		private static extern IntPtr Compilable(byte[] scriptSource);
 
-		private DispatcherTimer timer;
-		public List<ClientInfo> ActiveClients { get; private set; } = new List<ClientInfo>();
-
-		public void execute_script(string script)
-		{
-			string[] clientUsers = new string[ActiveClients.Count];
-			for (int i = 0; i < ActiveClients.Count; i++)
-			{
-				clientUsers[i] = ActiveClients[i].name;
-			}
-			byte[] scriptBytes = Encoding.UTF8.GetBytes(script);
-			Execute(scriptBytes, clientUsers, clientUsers.Length);
-		}
-		public string GetCompilableStatus(string scriptSource)
-		{
-			byte[] scriptSourceBytes = System.Text.Encoding.ASCII.GetBytes(scriptSource);
-			IntPtr resultPtr = Compilable(scriptSourceBytes);
-			string result = Marshal.PtrToStringAnsi(resultPtr);
-			Marshal.FreeCoTaskMem(resultPtr);
-
-			return result;
-		}
+		private readonly DispatcherTimer _timer;
+		public List<ClientInfo> ActiveClients { get; private set; } = new();
 
 		public ClientsWindow()
 		{
 			InitializeComponent();
 			Initialize();
-			MouseLeftButtonDown += Window_MouseLeftButtonDown;
-			timer = new DispatcherTimer
-			{
-				Interval = TimeSpan.FromMilliseconds(100)
-			};
-			timer.Tick += Timer_Tick;
-			timer.Start();
+			MouseLeftButtonDown += (_, _) => DragMove();
+
+			_timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+			_timer.Tick += UpdateClientList;
+			_timer.Start();
 		}
 
-		private void Timer_Tick(object sender, EventArgs e)
+		private void UpdateClientList(object sender, EventArgs e)
 		{
-			var newClients = GetClientInfoFromDll();
-			var newClientIds = new HashSet<int>(newClients.Select(c => c.id));
+			var newClients = GetClientsFromDll().ToDictionary(c => c.id);
+			checkBoxContainer.Children.OfType<CheckBox>()
+				.Where(cb => !newClients.ContainsKey(GetClientId(cb.Content.ToString())))
+				.ToList().ForEach(cb => checkBoxContainer.Children.Remove(cb));
 
-			// Remove invalid clients
-			var checkBoxesToRemove = new List<CheckBox>();
-			foreach (var child in checkBoxContainer.Children)
+			foreach (var client in newClients.Values)
 			{
-				if (child is CheckBox checkBox)
+				if (!IsClientListed(client) && !string.IsNullOrWhiteSpace(client.name))
 				{
-					string[] parts = checkBox.Content.ToString().Split(new[] { ", PID: " }, StringSplitOptions.None);
-					if (parts.Length == 2 && int.TryParse(parts[1].Trim(), out int id))
-					{
-						if (!newClientIds.Contains(id))
-						{
-							checkBoxesToRemove.Add(checkBox);
-						}
-					}
+					AddClientCheckBox(client);
 				}
 			}
 
-			foreach (var checkBox in checkBoxesToRemove)
-			{
-				checkBoxContainer.Children.Remove(checkBox);
-			}
-
-			// Add new clients
-			foreach (var client in newClients)
-			{
-				bool exists = false;
-				foreach (var child in checkBoxContainer.Children)
-				{
-					if (child is CheckBox checkBox)
-					{
-						if (checkBox.Content.ToString() == $"{client.name}, PID: {client.id}")
-						{
-							exists = true;
-							break;
-						}
-					}
-				}
-				if (!exists && client.name != "" && client.name != " ")
-				{
-					AddCheckBox($"{client.name}, PID: {client.id}");
-				}
-			}
-
-			// Update ActiveClients
-			ActiveClients.Clear();
-			foreach (var child in checkBoxContainer.Children)
-			{
-				if (child is CheckBox checkBox && checkBox.IsChecked == true)
-				{
-					string[] parts = checkBox.Content.ToString().Split(new[] { ", PID: " }, StringSplitOptions.None);
-					if (parts.Length == 2)
-					{
-						string name = parts[0].Trim();
-						if (int.TryParse(parts[1].Trim(), out int id))
-						{
-							ActiveClients.Add(new ClientInfo { name = name, id = id });
-						}
-					}
-				}
-			}
+			ActiveClients = checkBoxContainer.Children.OfType<CheckBox>()
+				.Where(cb => cb.IsChecked == true)
+				.Select(cb => new ClientInfo { name = GetClientName(cb.Content.ToString()), id = GetClientId(cb.Content.ToString()) })
+				.ToList();
 		}
 
-		private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+		public void ExecuteScript(string script)
 		{
-			DragMove();
+			var clientUsers = ActiveClients.Select(c => c.name).ToArray();
+			Execute(Encoding.UTF8.GetBytes(script), clientUsers, clientUsers.Length);
 		}
 
-		private void AddCheckBox(string content)
+		public string GetCompilableStatus(string script)
 		{
-			CheckBox newCheckBox = new CheckBox
+			IntPtr resultPtr = Compilable(Encoding.ASCII.GetBytes(script));
+			string result = Marshal.PtrToStringAnsi(resultPtr);
+			Marshal.FreeCoTaskMem(resultPtr);
+			return result;
+		}
+
+		private List<ClientInfo> GetClientsFromDll()
+		{
+			var clients = new List<ClientInfo>();
+			IntPtr currentPtr = GetClients();
+			while (true)
 			{
-				Content = content,
+				var client = Marshal.PtrToStructure<ClientInfo>(currentPtr);
+				if (client.name == null) break;
+				clients.Add(client);
+				currentPtr += Marshal.SizeOf<ClientInfo>();
+			}
+			return clients;
+		}
+
+		private static int GetClientId(string content) => int.Parse(content.Split(", PID: ")[1]);
+		private static string GetClientName(string content) => content.Split(", PID: ")[0].Trim();
+		private bool IsClientListed(ClientInfo client) => checkBoxContainer.Children.OfType<CheckBox>().Any(cb => cb.Content.ToString() == $"{client.name}, PID: {client.id}");
+
+		private void AddClientCheckBox(ClientInfo client)
+		{
+			checkBoxContainer.Children.Add(new CheckBox
+			{
+				Content = $"{client.name}, PID: {client.id}",
 				Foreground = Brushes.White,
 				FontFamily = new FontFamily("Franklin Gothic Medium"),
 				IsChecked = true,
 				Background = Brushes.Black
-			};
-
-			checkBoxContainer.Children.Add(newCheckBox);
+			});
 		}
 
-		private void buttonClose_Click(object sender, RoutedEventArgs e)
-		{
-			Hide();
-		}
-
-		private List<ClientInfo> GetClientInfoFromDll()
-		{
-			IntPtr ptr = GetClients();
-			var clients = new List<ClientInfo>();
-			IntPtr currentPtr = ptr;
-			ClientInfo client;
-
-			while (true)
-			{
-				client = Marshal.PtrToStructure<ClientInfo>(currentPtr);
-				if (client.name == null)
-				{
-					break;
-				}
-
-				clients.Add(client);
-				currentPtr += Marshal.SizeOf<ClientInfo>();
-			}
-
-			return clients;
-		}
+		private void buttonClose_Click(object sender, RoutedEventArgs e) => Hide();
 	}
 }

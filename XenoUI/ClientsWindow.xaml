@@ -1,7 +1,7 @@
 ﻿<Window x:Class="XenoUI.ClientsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ClientsWindow" Height="200" Width="300"
+        Title="Clients Window" Height="200" Width="300"
         WindowStyle="None" ResizeMode="NoResize" Background="Transparent" AllowsTransparency="True"
         WindowStartupLocation="CenterScreen" ShowInTaskbar="False">
     <Window.Resources>
