@@ -37,7 +37,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Resources\Images\add.png" />
     <None Remove="Resources\Images\clear.png" />
     <None Remove="Resources\Images\close.png" />
     <None Remove="Resources\Images\close2.png" />
@@ -67,7 +66,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Resources\Images\add.png" />
     <Resource Include="Resources\Images\clear.png" />
     <Resource Include="Resources\Images\close.png" />
     <Resource Include="Resources\Images\close2.png" />
