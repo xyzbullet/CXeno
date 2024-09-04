@@ -274,7 +274,7 @@ class bytecode_encoder_t : public Luau::BytecodeEncoder {
 std::vector<DWORD> GetRobloxClients();
 std::uintptr_t GetRV(HANDLE handle);
 
-std::string compilable(const std::string& source);
+std::string compilable(const std::string& source, bool returnBytecode=false);
 std::string Compile(const std::string& source);
 std::string decompress(const std::string& compressed);
 

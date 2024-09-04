@@ -84,7 +84,7 @@ namespace XenoUI
 
 			string unescapedContent = Regex.Unescape(textContent);
 
-			string sanitizedContent = new string(unescapedContent.Where(c => !char.IsControl(c) || c == '\n' || c == '\r').ToArray());
+			string sanitizedContent = new(unescapedContent.Where(c => !char.IsControl(c) || c == '\n' || c == '\r').ToArray());
 
 			return sanitizedContent;
 		}

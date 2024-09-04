@@ -561,11 +561,14 @@ std::string decompress(const std::string& compressed) {
     return std::string(decompressed.begin(), decompressed.end());
 }
 
-std::string compilable(const std::string& source) {
+std::string compilable(const std::string& source, bool returnBytecode) {
     static bytecode_encoder_t encoder = bytecode_encoder_t();
     std::string bytecode = Luau::compile(source, {}, {}, &encoder);
     if (bytecode[0] == '\0') {
         bytecode.erase(std::remove(bytecode.begin(), bytecode.end(), '\0'), bytecode.end());
+        return bytecode;
+    }
+    if (returnBytecode) {
         return bytecode;
     }
     return "success";

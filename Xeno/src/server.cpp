@@ -763,9 +763,13 @@ void setup_connection()
 			return;
 		}
 		std::string source = req.body;
+		bool returnBytecode = false;
+
+		if (req.has_param("btc"))
+			returnBytecode = true;
 
 		res.status = 200;
-		res.set_content(compilable(source), "text/plain");
+		res.set_content(compilable(source, returnBytecode), "text/plain");
 	});
 
 	svr.Post("/loadstring", [](const Request& req, Response& res) {

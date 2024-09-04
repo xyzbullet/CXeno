@@ -446,11 +446,15 @@ function Bridge:SyncFiles()
 	self.virtualFilesManagement.unsaved = unsuccessfulSave
 end
 
-function Bridge:CanCompile(source)
-	local result = self:InternalRequest({
+function Bridge:CanCompile(source, returnBytecode)
+	local requestArgs = {
 		['Url'] = self.serverUrl .. "/compilable",
 		['ct'] = source
-	})
+	}
+	if returnBytecode then
+		requestArgs.Url = self.serverUrl .. "/compilable?btc=t"
+	end
+	local result = self:InternalRequest(requestArgs)
 	if result then
 		if result == "success" then
 			return true
@@ -526,7 +530,7 @@ function Bridge:request(options)
 	})
 	if result then
 		result = HttpService:JSONDecode(result)
-		if result['r'] ~= "OK" and not Enum.HttpError[result['r']] then
+		if result['r'] ~= "OK" then
 			result['r'] = "Unknown"
 		end
 		if result['b64'] then
@@ -753,6 +757,13 @@ function Xeno.Xeno.SetGlobal(global_name, value)
 	}) ~= nil
 end
 
+function Xeno.Xeno.Compile(source)
+	assert(type(source) == "string", "invalid argument #1 to 'Compile' (string expected, got " .. type(source) .. ") ", 2)
+	if source == "" then return "" end
+	local _, result = Bridge:CanCompile(source, true)
+	return result
+end
+
 function Xeno.require(moduleScript)
 	assert(typeof(moduleScript) == "Instance", "Attempted to call require with invalid argument(s). ", 2)
 	assert(moduleScript.ClassName == "ModuleScript", "Attempted to call require with invalid argument(s). ", 2)
@@ -777,13 +788,18 @@ function Xeno.loadstring(source, chunkName)
 	assert(type(chunkName) == "string", "invalid argument #2 to 'loadstring' (string expected, got " .. type(chunkName) .. ") ", 2)
 	chunkName = chunkName:gsub("[^%a_]", "")
 	if (source == "" or source == " ") then
-		return nil, "Empty script source"
+		return function(...) end
 	end
 	local success, err = Bridge:CanCompile(source)
 	if not success then
 		return nil, chunkName .. tostring(err)
 	end
-	return Bridge:loadstring(source, chunkName)
+	local func = Bridge:loadstring(source, chunkName)
+	local func_env, caller_env = getfenv(func), getfenv(2)
+	for i, v in caller_env do
+		func_env[i] = v
+	end
+	return func
 end
 
 local supportedMethods = {"GET", "POST", "PUT", "DELETE", "PATCH"}
@@ -810,10 +826,9 @@ function Xeno.request(options)
 		)
 	end
 	if (options.Headers["User-Agent"]) then assert(type(options.Headers["User-Agent"]) == "string", "invalid option 'User-Agent' for argument #1 to 'request.Header' (string expected, got " .. type(options.Url) .. ") ", 2) end
-	options.Headers["User-Agent"] = options.Headers["User-Agent"] or "Xeno/" .. tostring(Xeno.about._version)
+	options.Headers["User-Agent"] = options.Headers["User-Agent"] or "Xeno/Roblox-Executor/" .. tostring(Xeno.about._version)
 	options.Headers["Exploit-Guid"] = tostring(hwid)
 	options.Headers["Xeno-Fingerprint"] = tostring(hwid)
-	options.Headers["Cache-Control"] = "no-cache"
 	options.Headers["Roblox-Place-Id"] = tostring(game.PlaceId)
 	options.Headers["Roblox-Game-Id"] = tostring(game.GameId)
 	options.Headers["Roblox-Session-Id"] = HttpService:JSONEncode({
@@ -896,10 +911,14 @@ end
 gameProxy.__newindex = function(self, index, value)
 	workspace.Parent[index] = value
 end
+gameProxy.__eq = function(self, value)
+	return value == workspace.Parent or value == game or false
+end
 gameProxy.__tostring = function(self)
 	return workspace.Parent.Name
 end
 gameProxy.__metatable = getmetatable(workspace.Parent)
+Xeno.Game = Xeno.game
 
 function Xeno.getgenv()
 	return _G.Xeno
@@ -1273,6 +1292,18 @@ function Xeno.getscriptbytecode(script_instance)
 end
 Xeno.dumpstring = Xeno.getscriptbytecode
 
+-- fake decompile, only returns the bytecode
+function Xeno.Decompile(script_instance)
+	if typeof(script_instance) ~= "Instance" then
+		return "-- invalid argument #1 to 'Decompile' (Instance expected, got " .. typeof(script_instance) .. ")"
+	end
+	if script_instance.ClassName ~= "LocalScript" and script_instance.ClassName ~= "ModuleScript" then
+		return "-- Only LocalScript and ModuleScript is supported but got \"" .. script_instance.ClassName .. "\""
+	end
+	return Xeno.getscriptbytecode(script_instance)
+end
+Xeno.decompile = Xeno.Decompile
+
 function Xeno.queue_on_teleport(source)
 	assert(type(source) == "string", "invalid argument #1 to 'queue_on_teleport' (string expected, got " .. type(source) .. ") ", 2)
 	return Bridge:queue_on_teleport("s", source)
@@ -1300,20 +1331,29 @@ function Xeno.rconsoledestroy()
 end
 Xeno.consoledestroy = Xeno.rconsoledestroy
 
-function Xeno.rconsoleprint(text)
-	assert(type(text) == "string", "invalid argument #1 to 'rconsoleprint' (string expected, got " .. type(text) .. ") ", 2)
+function Xeno.rconsoleprint(...)
+	local text = ""
+	for _, v in {...} do
+		text = text .. tostring(v) .. " "
+	end
 	return Bridge:rconsole("prt", "[-] " .. text)
 end
 Xeno.consoleprint = Xeno.rconsoleprint
 
-function Xeno.rconsoleinfo(text)
-	assert(type(text) == "string", "invalid argument #1 to 'rconsoleinfo' (string expected, got " .. type(text) .. ") ", 2)
+function Xeno.rconsoleinfo(...)
+	local text = ""
+	for _, v in {...} do
+		text = text .. tostring(v) .. " "
+	end
 	return Bridge:rconsole("prt", "[i] " .. text)
 end
 Xeno.consoleinfo = Xeno.rconsoleinfo
 
-function Xeno.rconsolewarn(text)
-	assert(type(text) == "string", "invalid argument #1 to 'rconsolewarn' (string expected, got " .. type(text) .. ") ", 2)
+function Xeno.rconsolewarn(...)
+	local text = ""
+	for _, v in {...} do
+		text = text .. tostring(v) .. " "
+	end
 	return Bridge:rconsole("prt", "[!] " .. text)
 end
 Xeno.consolewarn = Xeno.rconsolewarn
@@ -2073,14 +2113,14 @@ end
 function Xeno.mouse2press(x, y)
 	x = x or 0
 	y = y or 0
-	
+
 	VirtualInputManager:SendMouseButtonEvent(x, y, 1, true, workspace.Parent, false)
 end
 
 function Xeno.mouse2release(x, y)
 	x = x or 0
 	y = y or 0
-	
+
 	VirtualInputManager:SendMouseButtonEvent(x, y, 1, false, workspace.Parent, false)
 end
 
@@ -2091,18 +2131,18 @@ end
 function Xeno.mousemoverel(x, y)
 	x = x or 0
 	y = y or 0
-	
+
 	local vpSize = workspace.CurrentCamera.ViewportSize
 	local x = vpSize.X * x
 	local y = vpSize.Y * y
-	
+
 	VirtualInputManager:SendMouseMoveEvent(x, y, workspace.Parent)
 end
 
 function Xeno.mousemoveabs(x, y)
 	x = x or 0
 	y = y or 0
-	
+
 	VirtualInputManager:SendMouseMoveEvent(x, y, workspace.Parent)
 end
 
