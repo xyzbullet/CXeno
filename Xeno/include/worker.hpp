@@ -288,7 +288,7 @@ class bytecode_encoder_t : public Luau::BytecodeEncoder {
     }
 };
 
-std::vector<DWORD> GetRobloxClients();
+std::vector<DWORD> GetProcessIDsByName(const std::wstring_view processName);
 std::uintptr_t GetRV(HANDLE handle);
 
 std::string compilable(const std::string& source, bool returnBytecode=false);

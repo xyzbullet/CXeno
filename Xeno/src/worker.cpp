@@ -400,27 +400,28 @@ std::uintptr_t RBXClient::GetObjectValuePtr(const std::string_view objectval_nam
     return read_memory<std::uintptr_t>(objectValue + offsets::ObjectValue, handle);
 }
 
-std::vector<DWORD> GetRobloxClients()
-{
-    std::vector<DWORD> clients = {};
+std::vector<DWORD> GetProcessIDsByName(const std::wstring_view processName) {
+    std::vector<DWORD> processIDs;
 
-    HANDLE snap_shot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
-    if (snap_shot == INVALID_HANDLE_VALUE)
-        return clients;
+    HANDLE snapShot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+    if (snapShot == INVALID_HANDLE_VALUE)
+        return processIDs;
+
     PROCESSENTRY32W entry = { sizeof(PROCESSENTRY32W) };
 
-    if (Process32FirstW(snap_shot, &entry) == TRUE) {
-        if (_wcsicmp(L"RobloxPlayerBeta.exe", entry.szExeFile) == 0) {
-            clients.push_back(entry.th32ProcessID);
+    if (Process32FirstW(snapShot, &entry)) {
+        if (_wcsicmp(processName.data(), entry.szExeFile) == 0) {
+            processIDs.push_back(entry.th32ProcessID);
         }
-        while (Process32NextW(snap_shot, &entry) == TRUE) {
-            if (_wcsicmp(L"RobloxPlayerBeta.exe", entry.szExeFile) == 0) {
-                clients.push_back(entry.th32ProcessID);
+        while (Process32NextW(snapShot, &entry)) {
+            if (_wcsicmp(processName.data(), entry.szExeFile) == 0) {
+                processIDs.push_back(entry.th32ProcessID);
             }
         }
     }
 
-    return clients;
+    CloseHandle(snapShot);
+    return processIDs;
 }
 
 std::uintptr_t GetRV(HANDLE handle)

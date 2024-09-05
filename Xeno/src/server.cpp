@@ -36,7 +36,10 @@ static bool withinDirectory(const std::filesystem::path& base, const std::filesy
 }
 
 bool console_active = false;
+std::mutex rconsoleMtx;
 static void activate_console() {
+	// using mutex will be a bit slower but it will fix some console issues
+	std::lock_guard<std::mutex> lock(rconsoleMtx);
 	if (console_active)
 		return;
 
@@ -457,10 +460,12 @@ static void serve(Response& res, const json& body) {
 			if (console_active) {
 				system("cls");
 			}
+			return;
 		}
 
 		if (type == "crt") { // create
 			activate_console();
+			return;
 		}
 
 		if (type == "dst") { // destroy
@@ -468,13 +473,20 @@ static void serve(Response& res, const json& body) {
 				console_active = false;
 				FreeConsole();
 			}
+			return;
+		}
+
+		if (!body.contains("ct") /*content*/) {
+			res.status = 400;
+			res.set_content(R"({"error":"Missing required fields"})", "application/json");
+			return;
 		}
 
 		if (type == "prt") { // print
 			activate_console();
 			std::string text = body["ct"];
-			text = base64::from_base64(text);
-			std::cout << text << "\n";
+			text = base64::from_base64(text); // use base64 so the entire text can be shown without null termination
+			std::cout << text << std::endl;
 		}
 
 		if (type == "ttl") { // title

@@ -141,7 +141,7 @@ namespace XenoUI
 			}
 			if (SupportedVersion != client.version)
 			{
-				MessageBox.Show($"Xeno is not compatible on the client {client.name} with {client.version}\n\nSupported version: {SupportedVersion}\n\nClick OK to continue.", "Version Mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
+				MessageBox.Show($"Xeno is not compatible on the client {client.name} with {client.version}\n\nSupported version: {SupportedVersion}\n\nClick OK to continue using Xeno.", "Version Mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
 			}
 		}
 

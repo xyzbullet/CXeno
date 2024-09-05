@@ -24,8 +24,23 @@ static void newClient(DWORD pid) {
 }
 
 static void init() {
+    DWORD CurrentPID = GetCurrentProcessId();
+
+    std::vector<DWORD> xenoPIDs = GetProcessIDsByName(L"Xeno.exe");
+    std::vector<DWORD> xenoUIPIDs = GetProcessIDsByName(L"XenoUI.exe");
+
+    xenoPIDs.insert(xenoPIDs.end(), xenoUIPIDs.begin(), xenoUIPIDs.end());
+
+    for (const DWORD& pid : xenoPIDs) { // Terminate existing Xeno processes
+        if (pid == CurrentPID)
+            continue;
+        HANDLE hXeno = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+        if (hXeno)
+            TerminateProcess(hXeno, 0);
+    }
+
     while (true) {
-        std::vector<DWORD> client_pids = GetRobloxClients();
+        std::vector<DWORD> client_pids = GetProcessIDsByName(L"RobloxPlayerBeta.exe");
         std::unordered_set<DWORD> current_pids(client_pids.begin(), client_pids.end());
         {
             std::lock_guard<std::mutex> lock(clientsMtx);
