@@ -367,3 +367,5 @@ FodyWeavers.xsd
 /vcpkg_installed/x64-windows
 /build/Release/net8.0-windows/bin/editor.lua
 /build/Release/net8.0-windows/bin/editor.lua
+/build/Release/net8.0-windows/bin/editor.lua
+/build/Release/net8.0-windows/bin/editor.lua
