@@ -573,7 +573,7 @@ function Bridge:rconsole(_type, content)
 	local result = self:InternalRequest({
 		['c'] = "rc",
 		['t'] = _type,
-		['ct'] = content
+		['ct'] = base64.encode(content)
 	})
 	return result ~= nil
 end

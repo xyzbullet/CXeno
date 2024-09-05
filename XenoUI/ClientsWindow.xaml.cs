@@ -1,21 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Net.Http;
 
 namespace XenoUI
 {
 	public partial class ClientsWindow : Window
 	{
+		public string XenoVersion = "1.0.2";
+
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
 		public struct ClientInfo
 		{
+			public string version;
 			public string name;
 			public int id;
 		}
@@ -35,15 +35,37 @@ namespace XenoUI
 		private readonly DispatcherTimer _timer;
 		public List<ClientInfo> ActiveClients { get; private set; } = new();
 
+		public string SupportedVersion { get; private set; } = "";
+
 		public ClientsWindow()
 		{
 			InitializeComponent();
+			LoadSupportedVersion();
 			Initialize();
 			MouseLeftButtonDown += (_, _) => DragMove();
 
 			_timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
 			_timer.Tick += UpdateClientList;
 			_timer.Start();
+		}
+
+		private async void LoadSupportedVersion()
+		{
+			try
+			{
+				using var client = new HttpClient();
+				string latestVersion = await client.GetStringAsync("https://rizve.us.to/Xeno/LatestVersion");
+				if (latestVersion != XenoVersion)
+				{
+					MessageBox.Show($"The current version {XenoVersion} is outdated.\n\nPlease download the latest version of Xeno ({latestVersion}) here: https://github.com/Riz-ve/Xeno/releases", "Outdated Xeno version", MessageBoxButton.OK, MessageBoxImage.Warning);
+					Application.Current.Shutdown();
+				}
+				SupportedVersion = await client.GetStringAsync("https://rizve.us.to/Xeno/SupportedVersion");
+			}
+			catch (HttpRequestException e)
+			{
+				MessageBox.Show($"Error fetching versions: {e.Message}");
+			}
 		}
 
 		private void UpdateClientList(object sender, EventArgs e)
@@ -99,8 +121,12 @@ namespace XenoUI
 		private static string GetClientName(string content) => content.Split(", PID: ")[0].Trim();
 		private bool IsClientListed(ClientInfo client) => checkBoxContainer.Children.OfType<CheckBox>().Any(cb => cb.Content.ToString() == $"{client.name}, PID: {client.id}");
 
-		private void AddClientCheckBox(ClientInfo client)
+		private async Task AddClientCheckBox(ClientInfo client)
 		{
+			if (client.name == "N/A")
+			{
+				return;
+			}
 			checkBoxContainer.Children.Add(new CheckBox
 			{
 				Content = $"{client.name}, PID: {client.id}",
@@ -109,6 +135,14 @@ namespace XenoUI
 				IsChecked = true,
 				Background = Brushes.Black
 			});
+			while (string.IsNullOrWhiteSpace(SupportedVersion))
+			{
+				await Task.Delay(5);
+			}
+			if (SupportedVersion != client.version)
+			{
+				MessageBox.Show($"Xeno is not compatible on the client {client.name} with {client.version}\n\nSupported version: {SupportedVersion}\n\nClick OK to continue.", "Version Mismatch", MessageBoxButton.OK, MessageBoxImage.Warning);
+			}
 		}
 
 		private void buttonClose_Click(object sender, RoutedEventArgs e) => Hide();

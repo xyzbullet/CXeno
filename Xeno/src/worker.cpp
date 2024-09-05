@@ -124,7 +124,7 @@ static std::string generateGUID() {
     return std::string(guidStr);
 }
 
-static void replaceString(std::string& source, const std::string& toReplace, const std::string& replacement) {
+static void replaceString(std::string& source, const std::string_view toReplace, const std::string_view replacement) {
     size_t pos = source.find(toReplace);
 
     if (pos != std::string::npos) {
@@ -143,6 +143,7 @@ RBXClient::RBXClient(DWORD processID) :
 
     ClientDir = GetHandlePath(handle).parent_path();
     GUID = generateGUID();
+    Version = ClientDir.filename().string();
 
     PROCESS_MEMORY_COUNTERS memory_counter;
     K32GetProcessMemoryInfo(handle, &memory_counter, sizeof(memory_counter));
@@ -167,26 +168,26 @@ RBXClient::RBXClient(DWORD processID) :
     Username = LocalPlayer.Name();
 
     // Need to add checks else the process will crash
-    Instance* CoreGui = DataModel.FindFirstChild("CoreGui");
+    auto CoreGui = DataModel.FindFirstChild("CoreGui");
     if (!CoreGui) {
         std::cerr << "[!] Game->CoreGui not found\n";
         return;
     }
 
-    Instance* RobloxGui = CoreGui->FindFirstChild("RobloxGui");
+    auto RobloxGui = CoreGui->FindFirstChild("RobloxGui");
     if (!RobloxGui) {
         std::cerr << "[!] CoreGui->RobloxGui not found\n";
         return;
     }
-    Instance* Modules = RobloxGui->FindFirstChild("Modules");
+    auto Modules = RobloxGui->FindFirstChild("Modules");
     if (!Modules) {
         std::cerr << "[!] RobloxGui->Modules not found\n";
         return;
     }
 
-    Instance* PatchScript = nullptr;
+    std::unique_ptr<Instance> PatchScript = nullptr;
     {
-        Instance* Common = Modules->FindFirstChild("Common");
+        auto Common = Modules->FindFirstChild("Common");
         if (!Common) {
             std::cerr << "[!] Modules->Common not found\n";
             return;
@@ -225,9 +226,9 @@ RBXClient::RBXClient(DWORD processID) :
     }
 
     replaceString(clientScript, "%XENO_UNIQUE_ID%", GUID);
-    replaceString(clientScript, "%XENO_VERSION%", "1.0.1");
+    replaceString(clientScript, "%XENO_VERSION%", Xeno_Version);
 
-    std::string PatchScriptSource = "--!native\n--!optimize 1\n--!nonstrict\nlocal a={}local b=game:GetService(\"ContentProvider\")local function c(d)local e,f=d:find(\"%.\")local g=d:sub(f+1)if g:sub(-1)~=\"/\"then g=g..\"/\"end;return g end;local d=b.BaseUrl;local g=c(d)local h=string.format(\"https://games.%s\",g)local i=string.format(\"https://apis.rcs.%s\",g)local j=string.format(\"https://apis.%s\",g)local k=string.format(\"https://accountsettings.%s\",g)local l=string.format(\"https://gameinternationalization.%s\",g)local m=string.format(\"https://locale.%s\",g)local n=string.format(\"https://users.%s\",g)local o={GAME_URL=h,RCS_URL=i,APIS_URL=j,ACCOUNT_SETTINGS_URL=k,GAME_INTERNATIONALIZATION_URL=l,LOCALE_URL=m,ROLES_URL=n}setmetatable(a,{__newindex=function(p,q,r)end,__index=function(p,r)return o[r]end})return a";
+    const std::string PatchScriptSource = "--!native\n--!optimize 1\n--!nonstrict\nlocal a={}local b=game:GetService(\"ContentProvider\")local function c(d)local e,f=d:find(\"%.\")local g=d:sub(f+1)if g:sub(-1)~=\"/\"then g=g..\"/\"end;return g end;local d=b.BaseUrl;local g=c(d)local h=string.format(\"https://games.%s\",g)local i=string.format(\"https://apis.rcs.%s\",g)local j=string.format(\"https://apis.%s\",g)local k=string.format(\"https://accountsettings.%s\",g)local l=string.format(\"https://gameinternationalization.%s\",g)local m=string.format(\"https://locale.%s\",g)local n=string.format(\"https://users.%s\",g)local o={GAME_URL=h,RCS_URL=i,APIS_URL=j,ACCOUNT_SETTINGS_URL=k,GAME_INTERNATIONALIZATION_URL=l,LOCALE_URL=m,ROLES_URL=n}setmetatable(a,{__newindex=function(p,q,r)end,__index=function(p,r)return o[r]end})return a";
 
     if (DataModel.Name() == "App") { // In home page
         PatchScript->SetBytecode(Compile("coroutine.wrap(function(...)" + clientScript + "\nend)();" + PatchScriptSource));
@@ -243,9 +244,9 @@ RBXClient::RBXClient(DWORD processID) :
 
     std::lock_guard<std::mutex> lock(clientsMtx);
 
-    Instance* PlayerListManager = nullptr;
+    std::unique_ptr<Instance> PlayerListManager = nullptr;
     {
-        Instance* PlayerList = Modules->FindFirstChild("PlayerList");
+        auto PlayerList = Modules->FindFirstChild("PlayerList");
         if (!PlayerList) {
             std::cerr << "[!] Modules->PlayerList not found\n";
             return;
@@ -266,24 +267,24 @@ RBXClient::RBXClient(DWORD processID) :
         Sleep(4500);
     }
 
-    Instance* VRNavigation = nullptr;
+    std::unique_ptr<Instance> VRNavigation = nullptr;
     {
-        Instance* StarterPlayer = DataModel.FindFirstChildOfClass("StarterPlayer");
+        auto StarterPlayer = DataModel.FindFirstChildOfClass("StarterPlayer");
         if (!StarterPlayer) {
             std::cerr << "[!] Game->StarterPlayer not found\n";
             return;
         }
-        Instance* StarterPlayerScripts = StarterPlayer->FindFirstChild("StarterPlayerScripts");
+        auto StarterPlayerScripts = StarterPlayer->FindFirstChild("StarterPlayerScripts");
         if (!StarterPlayerScripts) {
             std::cerr << "[!] StarterPlayer->StarterPlayerScripts not found\n";
             return;
         }
-        Instance* PlayerModule = StarterPlayerScripts->FindFirstChild("PlayerModule");
+        auto PlayerModule = StarterPlayerScripts->FindFirstChild("PlayerModule");
         if (!PlayerModule) {
             std::cerr << "[!] StarterPlayerScripts->PlayerModule not found\n";
             return;
         }
-        Instance* ControlModule = PlayerModule->FindFirstChild("ControlModule");
+        auto ControlModule = PlayerModule->FindFirstChild("ControlModule");
         if (!ControlModule) {
             std::cerr << "[!] PlayerModule->ControlModule not found\n";
             return;
@@ -335,17 +336,19 @@ void RBXClient::execute(const std::string& source) const {
     std::uintptr_t dataModel_Address = FetchDataModel();
 
     Instance DataModel(dataModel_Address, handle);
-    Instance* CoreGui = DataModel.FindFirstChild("CoreGui");
+    auto CoreGui = DataModel.FindFirstChild("CoreGui");
+    if (!CoreGui)
+        return;
 
-    Instance* xenoFolder = CoreGui->FindFirstChild("Xeno");
+    auto xenoFolder = CoreGui->FindFirstChild("Xeno");
     if (!xenoFolder)
         return;
 
-    Instance* xenoModules = xenoFolder->FindFirstChild("Scripts");
+    auto xenoModules = xenoFolder->FindFirstChild("Scripts");
     if (!xenoModules)
         return;
 
-    Instance* xenoModule = xenoModules->FindFirstChildOfClass("ModuleScript");
+    auto xenoModule = xenoModules->FindFirstChildOfClass("ModuleScript");
     if (!xenoModule)
         return;
 
@@ -353,18 +356,20 @@ void RBXClient::execute(const std::string& source) const {
     xenoModule->UnlockModule();
 }
 
-bool RBXClient::loadstring(const std::string& source, std::string& script_name, std::string& chunk_name) const {
+bool RBXClient::loadstring(const std::string& source, const std::string& script_name, const std::string& chunk_name) const {
     std::uintptr_t dataModel_Address = FetchDataModel();
 
     Instance DataModel(dataModel_Address, handle);
-    Instance* CoreGui = DataModel.FindFirstChild("CoreGui");
+    auto CoreGui = DataModel.FindFirstChild("CoreGui");
+    if (!CoreGui)
+        return false;
 
-    Instance* xenoFolder = CoreGui->FindFirstChild("Xeno");
+    auto xenoFolder = CoreGui->FindFirstChild("Xeno");
     if (!xenoFolder)
         return false;
 
-    Instance* cloned_module = xenoFolder->FindFirstChild(script_name);
-    if (cloned_module->Self() == 0)
+    auto cloned_module = xenoFolder->FindFirstChild(script_name);
+    if (!cloned_module)
         return false;
 
     cloned_module->SetBytecode(Compile("return{[ [[" + chunk_name + "]] ] = function(...)function c(x,y)z=x;for i,v in y do z[i]=v;end;return z;end;setfenv(1,c(getfenv(1),_G.Xeno))setfenv(0,c(getfenv(0),_G.Xeno))for i,f in _G.Xeno do getfenv(0)[i] = f;getfenv(1)[i]=f;end;setmetatable(_G.Xeno,{__newindex=function(t,i,v)rawset(t,i,v);for i,v in t do getfenv()[i]=v;end;end,__index=function(t,val)return rawget(t,val);end});" + source + "\nend};"), true);
@@ -373,18 +378,18 @@ bool RBXClient::loadstring(const std::string& source, std::string& script_name, 
     return true;
 }
 
-std::uintptr_t RBXClient::GetObjectValuePtr(const std::string& objectval_name) const
+std::uintptr_t RBXClient::GetObjectValuePtr(const std::string_view objectval_name) const
 {
     std::uintptr_t dataModel_Address = FetchDataModel();
 
     Instance DataModel(dataModel_Address, handle);
-    Instance* CoreGui = DataModel.FindFirstChild("CoreGui");
+    auto CoreGui = DataModel.FindFirstChild("CoreGui");
 
-    Instance* xenoFolder = CoreGui->FindFirstChild("Xeno");
+    auto xenoFolder = CoreGui->FindFirstChild("Xeno");
     if (!xenoFolder)
         return 0;
 
-    Instance* objectValContainer = xenoFolder->FindFirstChild("Instance Pointers");
+    auto objectValContainer = xenoFolder->FindFirstChild("Instance Pointers");
     if (!objectValContainer)
         return 0;
 
@@ -516,7 +521,7 @@ static std::string compress(const std::string_view bytecode)
     return std::string(buffer.data(), size);
 }
 
-std::string decompress(const std::string& compressed) {
+std::string decompress(const std::string_view compressed) {
     const uint8_t bytecodeSignature[4] = { 'R', 'S', 'B', '1' };
     const int bytecodeHashMultiplier = 41;
     const int bytecodeHashSeed = 42;

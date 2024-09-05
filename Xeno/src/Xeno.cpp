@@ -51,17 +51,17 @@ static void init() {
 }
 
 extern "C" {
-    __declspec(dllexport) SimpleClient* GetClients() {
-        static std::vector<SimpleClient> simpleClients;
+    __declspec(dllexport) ClientInfo* GetClients() {
+        static std::vector<ClientInfo> simpleClients;
         {
             std::lock_guard<std::mutex> lock(clientsMtx);
             simpleClients.clear();
 
             for (const auto& client : Clients) {
-                simpleClients.push_back({ client->Username.c_str(), static_cast<int>(client->PID) });
+                simpleClients.push_back({client->Version.c_str() /*Version*/, client->Username.c_str() /*Username*/, static_cast<int>(client->PID) /*Process ID*/});
             }
 
-            simpleClients.push_back({ nullptr, 0 });
+            simpleClients.push_back({ nullptr, nullptr, 0 });
         }
         return simpleClients.data();
     }

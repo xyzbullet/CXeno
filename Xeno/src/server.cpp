@@ -49,8 +49,8 @@ static void activate_console() {
 	freopen_s(&pCout, "CONIN$", "r", stdin);
 }
 
-static void serve(Response& res, json& body) {
-	std::string cType = body["c"];
+static void serve(Response& res, const json& body) {
+	const std::string cType = body["c"];
 
 	if (cType == "rf") { // read file
 		if (!body.contains("p") /*path*/) {
@@ -59,7 +59,7 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string path = body["p"];
+		const std::string path = body["p"];
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;
 			res.set_content(R"({"error":"Attempt to escape directory"})", "application/json");
@@ -94,7 +94,7 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string path = body["p"];
+		const std::string path = body["p"];
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;
 			res.set_content(R"({"error":"Attempt to escape directory"})", "application/json");
@@ -123,7 +123,7 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string path = body["p"];
+		const std::string path = body["p"];
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;
 			res.set_content(R"({"error":"Attempt to escape directory"})", "application/json");
@@ -149,7 +149,7 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string path = body["p"];
+		const std::string path = body["p"];
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;
 			res.set_content(R"({"error":"Attempt to escape directory"})", "application/json");
@@ -190,7 +190,7 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string path = body["p"];
+		const std::string path = body["p"];
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;
 			res.set_content(R"({"error":"Attempt to escape directory"})", "application/json");
@@ -225,7 +225,7 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string path = body["p"];
+		const std::string path = body["p"];
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;
 			res.set_content(R"({"error":"Attempt to escape directory"})", "application/json");
@@ -260,14 +260,14 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string path = body["p"];
+		const std::string path = body["p"];
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;
 			res.set_content(R"({"error":"Attempt to escape directory"})", "application/json");
 			return;
 		}
 
-		std::filesystem::path sourcePath = std::filesystem::current_path() / path;
+		const std::filesystem::path sourcePath = std::filesystem::current_path() / path;
 
 		if (!std::filesystem::is_regular_file(sourcePath)) {
 			res.status = 400;
@@ -275,7 +275,7 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string pid = body["pid"];
+		const std::string pid = body["pid"];
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
 			if (std::to_string(client->PID) == pid) {
@@ -308,12 +308,12 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string url = body["l"];
-		std::string method = body["m"];
-		std::string rBody = body["b"];
-		json headersJ = body["h"];
+		const std::string url = body["l"];
+		const std::string method = body["m"];
+		const std::string rBody = body["b"];
+		const json headersJ = body["h"];
 
-		std::regex urlR(R"(^(http[s]?:\/\/)?([^\/]+)(\/.*)?$)");
+		const std::regex urlR(R"(^(http[s]?:\/\/)?([^\/]+)(\/.*)?$)");
 		std::smatch urlM;
 		std::string host;
 		std::string path;
@@ -363,7 +363,7 @@ static void serve(Response& res, json& body) {
 			}
 			responseJ["h"] = rHeadersJ;
 
-			auto contentType = proxiedRes->get_header_value("Content-Type");
+			const auto contentType = proxiedRes->get_header_value("Content-Type");
 			if (contentType.find("application/json") == std::string::npos &&
 				contentType.find("text/") == std::string::npos) { // convert binary files to base 64
 				responseJ["b"] = base64::to_base64(proxiedRes->body);
@@ -387,8 +387,8 @@ static void serve(Response& res, json& body) {
 			res.set_content(R"({"error":"Missing required fields"})", "application/json");
 			return;
 		}
-		std::string pid = body["pid"];
-		std::string type = body["t"];
+		const std::string pid = body["pid"];
+		const std::string type = body["t"];
 
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
@@ -404,7 +404,7 @@ static void serve(Response& res, json& body) {
 						res.set_content(R"({"error":"Missing required fields"})", "application/json");
 						return;
 					}
-					std::string source = body["ct"];
+					const std::string source = body["ct"];
 
 					res.status = 200;
 					client->TeleportQueue = source;
@@ -426,13 +426,13 @@ static void serve(Response& res, json& body) {
 			res.set_content(R"({"error":"Missing required fields"})", "application/json");
 			return;
 		}
-		std::string pid = body["pid"];
-		std::string containerName = body["cn"];
+		const std::string pid = body["pid"];
+		const std::string containerName = body["cn"];
 
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
 			if (std::to_string(client->PID) == pid) {
-				std::string bytecode = client->GetBytecode(containerName);
+				const std::string bytecode = client->GetBytecode(containerName);
 
 				res.status = 200;
 				res.set_content(bytecode, "text/plain");
@@ -451,7 +451,7 @@ static void serve(Response& res, json& body) {
 			res.set_content(R"({"error":"Missing required fields"})", "application/json");
 			return;
 		}
-		std::string type = body["t"];
+		const std::string type = body["t"];
 
 		if (type == "cls") { // clear
 			if (console_active) {
@@ -472,11 +472,13 @@ static void serve(Response& res, json& body) {
 
 		if (type == "prt") { // print
 			activate_console();
-			std::cout << std::string(body["ct"]) << std::endl;
+			std::string text = body["ct"];
+			text = base64::from_base64(text);
+			std::cout << text << "\n";
 		}
 
 		if (type == "ttl") { // title
-			std::string title = body["ct"];
+			const std::string title = body["ct"];
 			SetConsoleTitleA(title.c_str());
 		}
 
@@ -536,13 +538,13 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string containerName = body["cn"];
-		std::string pid = body["pid"];
+		const std::string containerName = body["cn"];
+		const std::string pid = body["pid"];
 
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
 			if (std::to_string(client->PID) == pid) {
-				std::uintptr_t address = client->GetObjectValuePtr(containerName);
+				const std::uintptr_t address = client->GetObjectValuePtr(containerName);
 
 				res.status = 200;
 				res.set_content(std::to_string(address), "text/plain");
@@ -562,10 +564,10 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string containerName = body["cn"];
-		std::string pid = body["pid"];
-		std::string newAddressStr = body["adr"];
-		std::uintptr_t newAddress = static_cast<std::uintptr_t>(std::stoull(newAddressStr));
+		const std::string containerName = body["cn"];
+		const std::string pid = body["pid"];
+		const std::string newAddressStr = body["adr"];
+		const std::uintptr_t newAddress = static_cast<std::uintptr_t>(std::stoull(newAddressStr));
 
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
@@ -589,7 +591,7 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string guid = body["gd"];
+		const std::string guid = body["gd"];
 
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
@@ -611,8 +613,8 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string type = body["t"];
-		std::string gName = body["n"];
+		const std::string type = body["t"];
+		const std::string gName = body["n"];
 		if (type == "s") { // set
 			if (!body.contains("v") /*value*/ || !body.contains("vt") /*value type*/) {
 				res.status = 400;
@@ -620,8 +622,8 @@ static void serve(Response& res, json& body) {
 				return;
 			}
 
-			std::string val = body["v"];
-			std::string valType = body["vt"];
+			const std::string val = body["v"];
+			const std::string valType = body["vt"];
 
 			Globals[gName] = { {"d", val}, {"t", valType} };
 
@@ -650,8 +652,8 @@ static void serve(Response& res, json& body) {
 			return;
 		}
 
-		std::string containerName = body["cn"];
-		std::string pid = body["pid"];
+		const std::string containerName = body["cn"];
+		const std::string pid = body["pid"];
 
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
@@ -727,8 +729,8 @@ void setup_connection()
 			res.set_content(R"({"error":"Missing required fields"})", "application/json");
 			return;
 		}
-		std::string path = req.get_param_value("p");
-		std::string content = req.body;
+		const std::string path = req.get_param_value("p");
+		const std::string content = req.body;
 
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;
@@ -762,7 +764,7 @@ void setup_connection()
 			res.set_content(R"({"error":"Missing required fields"})", "application/json");
 			return;
 		}
-		std::string source = req.body;
+		const std::string source = req.body;
 		bool returnBytecode = false;
 
 		if (req.has_param("btc"))
@@ -778,10 +780,10 @@ void setup_connection()
 			res.set_content(R"({"error":"Missing required fields"})", "application/json");
 			return;
 		}
-		std::string source = req.body;
-		std::string scriptName = req.get_param_value("n");
-		std::string pid = req.get_param_value("pid");
-		std::string chunkName = req.get_param_value("cn");
+		const std::string source = req.body;
+		const std::string scriptName = req.get_param_value("n");
+		const std::string pid = req.get_param_value("pid");
+		const std::string chunkName = req.get_param_value("cn");
 
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
@@ -808,7 +810,7 @@ void setup_connection()
 			res.set_content(R"({"error":"Missing required fields"})", "application/json");
 			return;
 		}
-		std::string content = req.body;
+		const std::string content = req.body;
 
 		if (!OpenClipboard(nullptr)) {
 			res.status = 400;
