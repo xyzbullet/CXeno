@@ -2172,7 +2172,7 @@ task.spawn(function() -- queue_on_teleport handler
 	end
 end)
 
-task.spawn(function()
+task.spawn(function() -- auto execute
 	local result = sendRequest({
 		Url = Bridge.serverUrl .. "/send",
 		Body = HttpService:JSONEncode({
