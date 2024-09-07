@@ -145,13 +145,12 @@ RBXClient::RBXClient(DWORD processID) :
     GUID = generateGUID();
     Version = ClientDir.filename().string();
 
+    // Not really the best way to wait for the client to load
     PROCESS_MEMORY_COUNTERS memory_counter;
     K32GetProcessMemoryInfo(handle, &memory_counter, sizeof(memory_counter));
-    if (memory_counter.WorkingSetSize < 550000000) {
-        while (memory_counter.WorkingSetSize < 550000000) {
-            K32GetProcessMemoryInfo(handle, &memory_counter, sizeof(memory_counter));
-            Sleep(100);
-        }
+    while (memory_counter.WorkingSetSize < 550000000) {
+        K32GetProcessMemoryInfo(handle, &memory_counter, sizeof(memory_counter));
+        Sleep(100); 
     }
 
     RenderView = GetRV(handle);
@@ -164,8 +163,20 @@ RBXClient::RBXClient(DWORD processID) :
 
     Instance DataModel(dataModelAddress, handle);
 
-    Instance LocalPlayer(read_memory<std::uintptr_t>(DataModel.FindFirstChildAddress("Players") + offsets::LocalPlayer, handle), handle);
+    std::uintptr_t LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildAddress("Players") + offsets::LocalPlayer, handle);
+    while (LocalPlayerAddr == 0) {
+        Sleep(50);
+        std::cout << "Waiting for LocalPlayer\n";
+        LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildAddress("Players") + offsets::LocalPlayer, handle);
+    }
+
+    Instance LocalPlayer(LocalPlayerAddr, handle);
     Username = LocalPlayer.Name();
+
+    while (Username == "Player") {
+        Username = LocalPlayer.Name();
+        Sleep(10);
+    }
 
     // Need to add checks else the process will crash
     auto CoreGui = DataModel.FindFirstChild("CoreGui");

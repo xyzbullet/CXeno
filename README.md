@@ -68,10 +68,11 @@ This project uses the following libraries:
 - [**httplib**](https://github.com/yhirose/cpp-httplib)
 - [**xxhash**](https://github.com/Cyan4973/xxHash)
 - [**zstd**](https://github.com/facebook/zstd)
+- [**openssl**](https://github.com/openssl/openssl)
 
 Dependencies are managed with [**vcpkg**](https://github.com/microsoft/vcpkg). Install them with this command:
 ```sh
-vcpkg install xxhash zstd
+vcpkg install xxhash zstd openssl
 ```
 
 The proper version of **httplib** is already included inside this project
