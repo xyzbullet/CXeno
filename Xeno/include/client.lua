@@ -3,7 +3,7 @@
 local XENO_UNIQUE = "%XENO_UNIQUE_ID%"
 
 local HttpService, UserInputService, InsertService = game:FindService("HttpService"), game:FindService("UserInputService"), game:FindService("InsertService")
-local RunService, CoreGui = game:FindService("RunService"), game:FindService("CoreGui")
+local RunService, CoreGui, StarterGui = game:FindService("RunService"), game:FindService("CoreGui"), game:FindService("StarterGui")
 local VirtualInputManager = Instance.new("VirtualInputManager")
 
 if CoreGui:FindFirstChild("Xeno") then return end
@@ -17,22 +17,25 @@ scriptsContainer.Name = "Scripts"
 local Xeno = {
 	about = {
 		_name = 'Xeno',
-		_version = '%XENO_VERSION%'
+		_version = '%XENO_VERSION%',
+		_publisher = ".rizve | https://rizve.us.to"
 	}
 }
 table.freeze(Xeno.about)
 
 local coreModules = {}
 for _, descendant in CoreGui.RobloxGui.Modules:GetDescendants() do
-	if descendant.ClassName == "ModuleScript" then
+	if descendant.ClassName == "ModuleScript" and 
+		-- Blacklist some modules so the player does not get core UI issues
+		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.Common) and
+		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.Settings) and
+		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PlayerList)
+	then
 		table.insert(coreModules, descendant)
-	end
-	if #coreModules > 5000 then
-		break
 	end
 end
 
-_G.Xeno = Xeno -- unprotected for sharing across all scripts (easily detected)
+_G.Xeno = Xeno
 
 local libs = {
 	{
@@ -50,7 +53,10 @@ local libs = {
 }
 
 if script.Name == "VRNavigation" then
-	print("[XENO]: Used ingame method. When you leave the game it might crash!")
+	StarterGui:SetCore("SendNotification", {
+		Title = "[Xeno]",
+		Text = "Used ingame method. When you leave the game it might crash!"
+	})
 end
 
 local lookupValueToCharacter = buffer.create(64)
@@ -406,7 +412,13 @@ function Bridge:SyncFiles()
 	end
 	local success = pcall(function()
 		getAllFiles("./")
-	end) if not success then print("[XENO]: Could not sync virtual files from client to external. Server was closed or it is being overloaded") return end
+	end) if not success then
+		StarterGui:SetCore("SendNotification", {
+			Title = "[Xeno]",
+			Text = "Could not sync virtual files from client to external. Server was closed or it is being overloaded"
+		})
+		return
+	end
 	local latestSave = {}
 
 	local success, r = pcall(function()
@@ -485,7 +497,7 @@ function Bridge:loadstring(source, chunkName)
 				required = _require(coreModule)
 			end)
 
-			if type(required) == "table" and required[chunkName] and type(required[chunkName]) == "function" then -- add better checks
+			if type(required) == "table" and required[chunkName] and type(required[chunkName]) == "function" then
 				if (#cachedModules > 1) then
 					for _, module in pairs(cachedModules) do
 						if module == coreModule then continue end
@@ -795,10 +807,7 @@ function Xeno.loadstring(source, chunkName)
 		return nil, chunkName .. tostring(err)
 	end
 	local func = Bridge:loadstring(source, chunkName)
-	local func_env, caller_env = getfenv(func), getfenv(2)
-	for i, v in caller_env do
-		func_env[i] = v
-	end
+	setfenv(func, getfenv(debug.info(2, 'f')))
 	return func
 end
 
@@ -1136,17 +1145,19 @@ local function InternalGet(url)
 	return result.Body
 end
 
-local libsLoaded = 0
+do
+	local libsLoaded = 0
 
-for i, libInfo in pairs(libs) do
-	task.spawn(function()
-		libs[i].content = Bridge:loadstring(InternalGet(libInfo.url), libInfo.name)()
-		--print("[XENO]: Successfully loaded library:", libInfo.name)
-		libsLoaded += 1
-	end)
+	for i, libInfo in pairs(libs) do
+		task.spawn(function()
+			libs[i].content = Bridge:loadstring(InternalGet(libInfo.url), libInfo.name)()
+			--print("[XENO]: Successfully loaded library:", libInfo.name)
+			libsLoaded += 1
+		end)
+	end
+
+	while libsLoaded < #libs do task.wait() end
 end
-
-while libsLoaded < #libs do task.wait() end
 
 local function getlib(libName)
 	for i, lib in pairs(libs) do
@@ -1161,7 +1172,9 @@ local HashLib, lz4, DrawingLib = getlib("HashLib"), getlib("lz4"), getlib("Drawi
 
 Xeno.base64 = base64
 Xeno.base64_encode = base64.encode
+Xeno.base64encode = base64.encode
 Xeno.base64_decode = base64.decode
+Xeno.base64decode = base64.decode
 
 Xeno.crypt = {
 	base64 = base64,
@@ -1588,7 +1601,7 @@ local renv = {
 	},
 
 	delay = delay, elapsedTime = elapsedTime, spawn = spawn, tick = tick, time = time, typeof = typeof,
-	UserSettings = UserSettings, version = version, wait = wait,
+	UserSettings = UserSettings, version = version, wait = wait, _VERSION = _VERSION,
 
 	task = {
 		defer = task.defer, delay = task.delay, spawn = task.spawn, wait = task.wait,
@@ -1735,8 +1748,7 @@ Xeno.setidentity = Xeno.setthreadidentity
 Xeno.setthreadcontext = Xeno.setthreadidentity
 
 function Xeno.getsenv(script_instance)
-	local env = getfenv(2)
-
+	local env = getfenv(debug.info(2, 'f'))
 	return setmetatable({
 		script = script_instance,
 	}, {
@@ -2148,7 +2160,7 @@ end
 
 function Xeno.getscriptclosure(s)
 	return function()
-		return table.clone(require(s))
+		return table.clone(Xeno.require(s))
 	end
 end
 Xeno.getscriptfunction = Xeno.getscriptclosure
@@ -2162,6 +2174,8 @@ function Xeno.isscriptable(object, property)
 	end
 	return false
 end
+
+
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 

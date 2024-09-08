@@ -82,13 +82,13 @@ extern "C" {
     }
 
     __declspec(dllexport) void Initialize() {
-        
+        /*
         FILE* conOut;
         AllocConsole();
         SetConsoleTitleA("Xeno");
         freopen_s(&conOut, "CONOUT$", "w", stdout);
         freopen_s(&conOut, "CONOUT$", "w", stderr);
-        
+        */
         
         HMODULE ntdll = LoadLibraryA("ntdll.dll");
         if (!ntdll) {

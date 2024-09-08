@@ -49,7 +49,7 @@ namespace XenoUI
 				string tab = Path.Combine(bin, "editor.lua");
 
 				Directory.CreateDirectory(bin);
-				if (!File.Exists(tab)) File.WriteAllText(tab, "print(\"Hello, World!\")");
+				if (!File.Exists(tab)) File.WriteAllText(tab, "print(\"Hello, World!\")\n--Made by .rizve on Discord (https://rizve.us.to)");
 
 				if (!File.Exists(indexPath)) throw new FileNotFoundException("Could not load the Monaco");
 
@@ -82,11 +82,7 @@ namespace XenoUI
 				textContent = textContent[1..^1];
 			}
 
-			string unescapedContent = Regex.Unescape(textContent);
-
-			string sanitizedContent = new(unescapedContent.Where(c => !char.IsControl(c) || c == '\n' || c == '\r').ToArray());
-
-			return sanitizedContent;
+			return Regex.Unescape(textContent);
 		}
 
 		private async Task SetScriptContent(string content)
