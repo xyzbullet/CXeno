@@ -57,7 +57,7 @@ getgenv().game = workspace.Parent
 This will remove **HttpGet** from game!
 
 ### Preview
-<p>This is the UI of the previous version (v1.0.1):</p>
+<p>This is the UI of the version 1.0.1:</p>
 <img src="v1.0.1-Preview.png" alt="Preview" width="600" style="box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(255, 255, 255, 0.3);" />
 <p>The Current UNC is <span style="color: green;">73%</span></p>
 <img src="v1.0.1-UNC.png" alt="Preview" width="600" style="box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.5), -10px -10px 20px rgba(255, 255, 255, 0.3);" />
