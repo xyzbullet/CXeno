@@ -53,7 +53,7 @@ static void activate_console() {
 }
 
 static void serve(Response& res, const json& body) {
-	const std::string cType = body["c"];
+	const std::string_view cType = body["c"];
 
 	if (cType == "rf") { // read file
 		if (!body.contains("p") /*path*/) {
@@ -213,11 +213,11 @@ static void serve(Response& res, const json& body) {
 				res.status = 500;
 				res.set_content(R"({"error":"Could not delete directory"})", "application/json");
 			}
-		}
-		catch (const std::filesystem::filesystem_error& e) {
+		} catch (const std::filesystem::filesystem_error& e) {
 			res.status = 500;
 			res.set_content("{\"error\":\"Could not delete directory: " + std::string(e.what()) + "\"})", "application/json");
 		}
+
 		return;
 	}
 

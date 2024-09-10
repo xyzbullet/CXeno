@@ -163,11 +163,11 @@ RBXClient::RBXClient(DWORD processID) :
 
     Instance DataModel(dataModelAddress, handle);
 
-    std::uintptr_t LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildAddress("Players") + offsets::LocalPlayer, handle);
+    std::uintptr_t LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildOfClassAddress("Players") + offsets::LocalPlayer, handle);
     while (LocalPlayerAddr == 0) {
         Sleep(50);
         std::cout << "Waiting for LocalPlayer\n";
-        LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildAddress("Players") + offsets::LocalPlayer, handle);
+        LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildOfClassAddress("Players") + offsets::LocalPlayer, handle);
     }
 
     Instance LocalPlayer(LocalPlayerAddr, handle);
@@ -347,11 +347,11 @@ void RBXClient::execute(const std::string& source) const {
     std::uintptr_t dataModel_Address = FetchDataModel();
 
     Instance DataModel(dataModel_Address, handle);
-    auto CoreGui = DataModel.FindFirstChild("CoreGui");
-    if (!CoreGui)
+    auto RobloxReplicatedStorage = DataModel.FindFirstChildOfClass("RobloxReplicatedStorage");
+    if (!RobloxReplicatedStorage)
         return;
 
-    auto xenoFolder = CoreGui->FindFirstChild("Xeno");
+    auto xenoFolder = RobloxReplicatedStorage->FindFirstChild("Xeno");
     if (!xenoFolder)
         return;
 
@@ -372,11 +372,11 @@ bool RBXClient::loadstring(const std::string& source, const std::string& script_
     std::uintptr_t dataModel_Address = FetchDataModel();
 
     Instance DataModel(dataModel_Address, handle);
-    auto CoreGui = DataModel.FindFirstChild("CoreGui");
-    if (!CoreGui)
+    auto RobloxReplicatedStorage = DataModel.FindFirstChildOfClass("RobloxReplicatedStorage");
+    if (!RobloxReplicatedStorage)
         return false;
 
-    auto xenoFolder = CoreGui->FindFirstChild("Xeno");
+    auto xenoFolder = RobloxReplicatedStorage->FindFirstChild("Xeno");
     if (!xenoFolder)
         return false;
 
@@ -396,9 +396,9 @@ std::uintptr_t RBXClient::GetObjectValuePtr(const std::string_view objectval_nam
     std::uintptr_t dataModel_Address = FetchDataModel();
 
     Instance DataModel(dataModel_Address, handle);
-    auto CoreGui = DataModel.FindFirstChild("CoreGui");
+    auto RobloxReplicatedStorage = DataModel.FindFirstChildOfClass("RobloxReplicatedStorage");
 
-    auto xenoFolder = CoreGui->FindFirstChild("Xeno");
+    auto xenoFolder = RobloxReplicatedStorage->FindFirstChild("Xeno");
     if (!xenoFolder)
         return 0;
 

@@ -3,12 +3,12 @@
 local XENO_UNIQUE = "%XENO_UNIQUE_ID%"
 
 local HttpService, UserInputService, InsertService = game:FindService("HttpService"), game:FindService("UserInputService"), game:FindService("InsertService")
-local RunService, CoreGui, StarterGui = game:FindService("RunService"), game:FindService("CoreGui"), game:FindService("StarterGui")
-local VirtualInputManager = Instance.new("VirtualInputManager")
+local RunService, CoreGui, StarterGui = game:GetService("RunService"), game:FindService("CoreGui"), game:GetService("StarterGui")
+local VirtualInputManager, RobloxReplicatedStorage = Instance.new("VirtualInputManager"), game:GetService("RobloxReplicatedStorage")
 
-if CoreGui:FindFirstChild("Xeno") then return end
+if RobloxReplicatedStorage:FindFirstChild("Xeno") then return end
 
-local XenoContainer = Instance.new("Folder", CoreGui)
+local XenoContainer = Instance.new("Folder", RobloxReplicatedStorage)
 XenoContainer.Name = "Xeno"
 local objectPointerContainer, scriptsContainer = Instance.new("Folder", XenoContainer), Instance.new("Folder", XenoContainer)
 objectPointerContainer.Name = "Instance Pointers"
@@ -23,16 +23,27 @@ local Xeno = {
 }
 table.freeze(Xeno.about)
 
-local coreModules = {}
+local coreModules, blacklistedModuleParents = {}, {
+	"Common",
+	"Settings",
+	"PlayerList",
+	"InGameMenu",
+	"PublishAssetPrompt",
+	"TopBar",
+	"InspectAndBuy",
+	"VoiceChat"
+}
+
 for _, descendant in CoreGui.RobloxGui.Modules:GetDescendants() do
-	if descendant.ClassName == "ModuleScript" and 
-		-- Blacklist some modules so the player does not get core UI issues
-		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.Common) and
-		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.Settings) and
-		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PlayerList) and
-		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.InGameMenu) and
-		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PublishAssetPrompt) and
-		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.TopBar)
+	if descendant.ClassName == "ModuleScript" and
+		(function()
+			for i, parentName in next, blacklistedModuleParents do
+				if descendant:IsDescendantOf(CoreGui.RobloxGui.Modules[parentName]) then
+					return
+				end
+			end
+			return true
+		end)()
 	then
 		table.insert(coreModules, descendant)
 	end
@@ -1079,11 +1090,12 @@ function Xeno.delfolder(path)
 	local unsavedFile, index = getUnsaved(Bridge.makefolder, path)
 	if unsavedFile then
 		table.remove(Bridge.virtualFilesManagement.unsaved, index)
+		return
 	end
 	if getUnsaved(Bridge.delfolder, path) then
 		return
 	end
-	table.insert(Bridge.virtualFilesManagement, {
+	table.insert(Bridge.virtualFilesManagement.unsaved, {
 		func = Bridge.delfolder,
 		x = path
 	})
@@ -1097,7 +1109,7 @@ function Xeno.delfile(path)
 	if getUnsaved(Bridge.delfile, path) then
 		return
 	end
-	table.insert(Bridge.virtualFilesManagement, {
+	table.insert(Bridge.virtualFilesManagement.unsaved, {
 		func = Bridge.delfile,
 		x = path
 	})
@@ -2215,10 +2227,17 @@ end
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
+local function merge(t1, t2)
+	for k, v in pairs(t2) do t1[k] = v end
+	return t1
+end
+
 task.spawn(function() -- queue_on_teleport handler
 	local source = Bridge:queue_on_teleport("g")
 	if type(source) == "string" and source ~= "" then
-		Xeno.loadstring(source)()
+		local rawLoadstringFunc = Bridge:loadstring(source, "queue_on_teleport")
+		setfenv(rawLoadstringFunc, merge(getfenv(rawLoadstringFunc), Xeno))
+		task.spawn(rawLoadstringFunc)
 	end
 end)
 
@@ -2231,14 +2250,12 @@ task.spawn(function() -- auto execute
 		Method = "POST"
 	})
 	if result and result.Success and result.Body ~= "" then
-		loadstring(result.Body)()
+		local rawLoadstringFunc = Bridge:loadstring(result.Body, "autoexec")
+		setfenv(rawLoadstringFunc, merge(getfenv(rawLoadstringFunc), Xeno))
+		task.spawn(rawLoadstringFunc)
 	end
 end)
 
-local function merge(t1, t2)
-	for k, v in pairs(t2) do t1[k] = v end
-	return t1
-end
 local function listen(coreModule)
 	while task.wait() do
 		local execution_table
