@@ -363,7 +363,7 @@ void RBXClient::execute(const std::string& source) const {
     if (!xenoModule)
         return;
 
-    xenoModule->SetBytecode(Compile("return {['x e n o']=function(...)do local function s(i, v)getfenv(debug.info(0, 'f'))[i] = v;getfenv(debug.info(1, 'f'))[i] = v;end;for i,v in pairs(getfenv(debug.info(1,'f')))do s(i, v)end;setmetatable(getgenv(),{__newindex=function(t,i,v)s(i, v)end})end;" + source +"\nend}"), true);
+    xenoModule->SetBytecode(Compile("return {['x e n o']=function(...)do local function s(i, v)getfenv(debug.info(0, 'f'))[i] = v;getfenv(debug.info(1, 'f'))[i] = v;end;for i,v in pairs(getfenv(debug.info(1,'f')))do s(i, v)end;setmetatable(getgenv(),{__newindex=function(t,i,v)rawset(t,i,v)s(i,v)end})end;" + source +"\nend}"), true);
     
     xenoModule->UnlockModule();
 }
@@ -384,7 +384,7 @@ bool RBXClient::loadstring(const std::string& source, const std::string& script_
     if (!cloned_module)
         return false;
 
-    cloned_module->SetBytecode(Compile("return{[ [[" + chunk_name + "]] ]=function(...)do local function s(i, v)getfenv(debug.info(0, 'f'))[i] = v;getfenv(debug.info(1, 'f'))[i] = v;end;for i,v in pairs(getfenv(debug.info(1,'f')))do s(i, v)end;setmetatable(getgenv and getgenv() or {},{__newindex=function(t,i,v)s(i, v)end})end;" + source + "\nend}"), true);
+    cloned_module->SetBytecode(Compile("return{[ [[" + chunk_name + "]] ]=function(...)do local function s(i, v)getfenv(debug.info(0, 'f'))[i] = v;getfenv(debug.info(1, 'f'))[i] = v;end;for i,v in pairs(getfenv(debug.info(1,'f')))do s(i, v)end;setmetatable(getgenv and getgenv()or{},{__newindex=function(t,i,v)rawset(t,i,v)s(i,v)end})end;" + source + "\nend}"), true);
 
     cloned_module->UnlockModule();
 

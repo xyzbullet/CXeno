@@ -31,7 +31,8 @@ for _, descendant in CoreGui.RobloxGui.Modules:GetDescendants() do
 		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.Settings) and
 		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PlayerList) and
 		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.InGameMenu) and
-		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PublishAssetPrompt)
+		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PublishAssetPrompt) and
+		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.TopBar)
 	then
 		table.insert(coreModules, descendant)
 	end
@@ -1306,6 +1307,8 @@ end
 Xeno.dumpstring = Xeno.getscriptbytecode
 
 -- Thanks to plusgiant5 for letting me use konstant api
+
+local last_call = 0
 local function konst_call(konstantType: string, scriptPath: Script | ModuleScript | LocalScript): string
 	local success: boolean, bytecode: string = pcall(Xeno.getscriptbytecode, scriptPath)
 
@@ -1313,6 +1316,10 @@ local function konst_call(konstantType: string, scriptPath: Script | ModuleScrip
 		return `-- Failed to get script bytecode, error:\n\n--[[\n{bytecode}\n--]]`
 	end
 
+	local time_elapsed = os.clock() - last_call
+	if time_elapsed <= .5 then
+		task.wait(.5 - time_elapsed)
+	end
 	local httpResult = Xeno.request({
 		Url = "http://api.plusgiant5.com" .. konstantType,
 		Body = bytecode,
@@ -1321,6 +1328,7 @@ local function konst_call(konstantType: string, scriptPath: Script | ModuleScrip
 			["Content-Type"] = "text/plain"
 		},
 	})
+	last_call = os.clock()
 
 	if (httpResult.StatusCode ~= 200) then
 		return `-- Error occured while requesting the API, error:\n\n--[[\n{httpResult.Body}\n--]]`
@@ -2241,7 +2249,7 @@ local function listen(coreModule)
 			local execLoad = execution_table["x e n o"]
 			setfenv(execLoad, merge(getfenv(execLoad), Xeno))
 			task.spawn(execLoad)
-			
+
 			execution_table.__executed = true
 			coreModule.Parent = nil
 		end
