@@ -72,7 +72,6 @@ private:
     const std::uintptr_t _Self;
     const ClassDescriptor classDescriptor;
     HANDLE handle;
-
 public:
     Instance(std::uintptr_t address, HANDLE handle) :
         handle(handle),

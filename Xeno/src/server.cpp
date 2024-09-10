@@ -313,7 +313,7 @@ static void serve(Response& res, const json& body) {
 
 		const std::string url = body["l"];
 		const std::string method = body["m"];
-		const std::string rBody = body["b"];
+		const std::string rBody = base64::from_base64(body["b"]);
 		const json headersJ = body["h"];
 
 		const std::regex urlR(R"(^(http[s]?:\/\/)?([^\/]+)(\/.*)?$)");

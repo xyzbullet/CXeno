@@ -29,13 +29,13 @@ for _, descendant in CoreGui.RobloxGui.Modules:GetDescendants() do
 		-- Blacklist some modules so the player does not get core UI issues
 		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.Common) and
 		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.Settings) and
-		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PlayerList)
+		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PlayerList) and
+		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.InGameMenu) and
+		not descendant:IsDescendantOf(CoreGui.RobloxGui.Modules.PublishAssetPrompt)
 	then
 		table.insert(coreModules, descendant)
 	end
 end
-
-_G.Xeno = Xeno
 
 local libs = {
 	{
@@ -315,7 +315,7 @@ function Bridge:InternalRequest(body, timeout)
 	end)
 
 	if success and result then
-		error(result, 2)
+		error("XENO SERVER ERRO: " .. tostring(result), 2)
 	end
 
 	error("An unknown error occured by the server.", 2)
@@ -656,7 +656,7 @@ task.spawn(function()
 	end
 end)
 
-function is_client_loaded()
+local function is_client_loaded()
 	local result = sendRequest({
 		Url = Bridge.serverUrl .. "/send",
 		Body = HttpService:JSONEncode({
@@ -822,10 +822,10 @@ function Xeno.request(options)
 	assert(not (options.Method == "GET" and options.Body), "invalid option 'Body' for argument #1 to 'request' (current method is GET but option 'Body' was used)", 2)
 	if options.Body then
 		assert(type(options.Body) == "string", "invalid option 'Body' for argument #1 to 'request' (string expected, got " .. type(options.Body) .. ") ", 2)
-		assert(pcall(function() HttpService:JSONDecode(options.Body) end), "invalid option 'Body' for argument #1 to 'request' (invalid json string format)", 2)
+		options.Body = base64.encode(options.Body)
 	end
 	if options.Headers then assert(type(options.Headers) == "table", "invalid option 'Headers' for argument #1 to 'request' (table expected, got " .. type(options.Url) .. ") ", 2) end
-	options.Body = options.Body or "{}"
+	options.Body = options.Body or "e30=" -- "{}" in base64
 	options.Headers = options.Headers or {}
 	if httpSpy then
 		Xeno.rconsoleprint("-----------------[Xeno Http Spy]---------------\nUrl: " .. options.Url .. 
@@ -930,7 +930,7 @@ gameProxy.__metatable = getmetatable(workspace.Parent)
 Xeno.Game = Xeno.game
 
 function Xeno.getgenv()
-	return _G.Xeno
+	return Xeno
 end
 
 -- / Filesystem \ --
@@ -990,10 +990,11 @@ function Xeno.appendfile(path, content)
 		unsavedFile.y = unsavedFile.y .. content
 		return true
 	end
-	local readVal = Bridge:readfile(path)
-	if readVal then
-		return Xeno.writefile(path, readVal .. content)
-	end
+	local readVal = ""
+	pcall(function()
+		readVal = Bridge:readfile(path)
+	end)
+	Xeno.writefile(path, readVal .. content)
 end
 function Xeno.loadfile(path)
 	assert(type(path) == "string", "invalid argument #1 to 'loadfile' (string expected, got " .. type(path) .. ") ", 2)
@@ -1151,7 +1152,6 @@ do
 	for i, libInfo in pairs(libs) do
 		task.spawn(function()
 			libs[i].content = Bridge:loadstring(InternalGet(libInfo.url), libInfo.name)()
-			--print("[XENO]: Successfully loaded library:", libInfo.name)
 			libsLoaded += 1
 		end)
 	end
@@ -1305,7 +1305,30 @@ function Xeno.getscriptbytecode(script_instance)
 end
 Xeno.dumpstring = Xeno.getscriptbytecode
 
--- fake decompile, only returns the bytecode
+-- Thanks to plusgiant5 for letting me use konstant api
+local function konst_call(konstantType: string, scriptPath: Script | ModuleScript | LocalScript): string
+	local success: boolean, bytecode: string = pcall(Xeno.getscriptbytecode, scriptPath)
+
+	if (not success) then
+		return `-- Failed to get script bytecode, error:\n\n--[[\n{bytecode}\n--]]`
+	end
+
+	local httpResult = Xeno.request({
+		Url = "http://api.plusgiant5.com" .. konstantType,
+		Body = bytecode,
+		Method = "POST",
+		Headers = {
+			["Content-Type"] = "text/plain"
+		},
+	})
+
+	if (httpResult.StatusCode ~= 200) then
+		return `-- Error occured while requesting the API, error:\n\n--[[\n{httpResult.Body}\n--]]`
+	else
+		return httpResult.Body
+	end
+end
+
 function Xeno.Decompile(script_instance)
 	if typeof(script_instance) ~= "Instance" then
 		return "-- invalid argument #1 to 'Decompile' (Instance expected, got " .. typeof(script_instance) .. ")"
@@ -1313,9 +1336,21 @@ function Xeno.Decompile(script_instance)
 	if script_instance.ClassName ~= "LocalScript" and script_instance.ClassName ~= "ModuleScript" then
 		return "-- Only LocalScript and ModuleScript is supported but got \"" .. script_instance.ClassName .. "\""
 	end
-	return Xeno.getscriptbytecode(script_instance)
+	return konst_call("/konstant/decompile", script_instance)
 end
 Xeno.decompile = Xeno.Decompile
+
+-- for some reason, UniversalSynSaveInstance is using the Disassemble function the same as Decompile.
+function Xeno.__Disassemble(script_instance)
+	if typeof(script_instance) ~= "Instance" then
+		return "-- invalid argument #1 to 'disassemble' (Instance expected, got " .. typeof(script_instance) .. ")"
+	end
+	if script_instance.ClassName ~= "LocalScript" and script_instance.ClassName ~= "ModuleScript" then
+		return "-- Only LocalScript and ModuleScript is supported but got \"" .. script_instance.ClassName .. "\""
+	end
+	return konst_call("/konstant/disassemble", script_instance)
+end
+Xeno.__disassemble = Xeno.__Disassemble
 
 function Xeno.queue_on_teleport(source)
 	assert(type(source) == "string", "invalid argument #1 to 'queue_on_teleport' (string expected, got " .. type(source) .. ") ", 2)
@@ -1842,25 +1877,18 @@ function Xeno.isnetworkowner(part)
 	return part.ReceiveAge == 0
 end
 
-function Xeno.deepclone(object)
-	local lookup_table = {}
-	local function Copy(object)
-		if type(object) ~= 'table' then
-			return object
-		elseif lookup_table[object] then
-			return lookup_table[object]
-		end
+function Xeno.deepclone(object) -- used for initialization
+	local lookup = {}
+	local function copy(obj)
+		if type(obj) ~= 'table' then return obj end
+		if lookup[obj] then return lookup[obj] end
 
-		local new_table = {}
-		lookup_table[object] = new_table
-		for key, value in pairs(object) do 
-			new_table[Copy(key)] = Copy(value)
-		end
-
-		return setmetatable(new_table, getmetatable(object))
+		local new = {}
+		lookup[obj] = new
+		for k, v in pairs(obj) do new[copy(k)] = copy(v) end
+		return setmetatable(new, getmetatable(obj))
 	end
-
-	return Copy(object)
+	return copy(object)
 end
 
 Xeno.debug = table.clone(debug) -- the debug funcs was not by me (.rizve) credits goes to the person that made it
@@ -2199,7 +2227,10 @@ task.spawn(function() -- auto execute
 	end
 end)
 
-
+local function merge(t1, t2)
+	for k, v in pairs(t2) do t1[k] = v end
+	return t1
+end
 local function listen(coreModule)
 	while task.wait() do
 		local execution_table
@@ -2207,7 +2238,10 @@ local function listen(coreModule)
 			execution_table = _require(coreModule)
 		end)
 		if type(execution_table) == "table" and execution_table["x e n o"] and (not execution_table.__executed) and coreModule.Parent == scriptsContainer then
-			task.spawn(execution_table["x e n o"])
+			local execLoad = execution_table["x e n o"]
+			setfenv(execLoad, merge(getfenv(execLoad), Xeno))
+			task.spawn(execLoad)
+			
 			execution_table.__executed = true
 			coreModule.Parent = nil
 		end
