@@ -26,9 +26,8 @@ std::vector<std::uintptr_t> functions::GetChildrenAddresses(std::uintptr_t addre
 
         for (std::uintptr_t childAddress = childrenStart; childAddress < childrenEnd; childAddress += 0x10) {
             std::uintptr_t childPtr = read_memory<std::uintptr_t>(childAddress, handle);
-            if (childPtr != 0) {
+            if (childPtr != 0)
                 children.push_back(childPtr);
-            }
         }
     }
     return children;

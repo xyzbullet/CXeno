@@ -682,6 +682,32 @@ static void serve(Response& res, const json& body) {
 		return;
 	}
 
+	if (cType == "prp") { // get properties
+		if (!body.contains("cn") /*instance container name*/ || !body.contains("pid") /*process id*/) {
+			res.status = 400;
+			res.set_content(R"({"error":"Missing required fields"})", "application/json");
+			return;
+		}
+
+		const std::string containerName = body["cn"];
+		const std::string pid = body["pid"];
+
+		std::lock_guard<std::mutex> lock(clientsMtx);
+		for (const auto& client : Clients) {
+			if (std::to_string(client->PID) == pid) {
+				json Properties = client->GetProperties(containerName);
+
+				res.status = 200;
+				res.set_content(Properties.dump(), "application/json");
+				return;
+			}
+		}
+
+		res.status = 400;
+		res.set_content(R"({"error":"Client with the given PID was not found"})", "application/json");
+		return;
+	}
+
 	res.status = 400;
 	res.set_content(R"({"error":"Invalid value for the field 'c'"})", "application/json");
 };
@@ -742,7 +768,7 @@ void setup_connection()
 			return;
 		}
 		const std::string path = req.get_param_value("p");
-		const std::string content = req.body;
+		const std::string_view content = req.body;
 
 		if (!withinDirectory(std::filesystem::current_path(), path)) {
 			res.status = 400;

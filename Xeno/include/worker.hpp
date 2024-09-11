@@ -55,6 +55,7 @@ namespace functions { // functions for rbx
     std::string ReadRobloxString(std::uintptr_t address, HANDLE handle);
 }
 
+/*
 struct ClassDescriptor {
     const std::uintptr_t Self;
     const std::string Name; // ClassName
@@ -66,17 +67,16 @@ struct ClassDescriptor {
         Capabilities(read_memory<std::uint64_t>(Self + 0x370, handle))
     {}
 };
+*/
 
 class Instance {
 private:
     const std::uintptr_t _Self;
-    const ClassDescriptor classDescriptor;
     HANDLE handle;
 public:
     Instance(std::uintptr_t address, HANDLE handle) :
         handle(handle),
-        _Self(address),
-        classDescriptor(address, handle)
+        _Self(address)
     {}
 
     // Instance functions
@@ -189,6 +189,23 @@ public:
         }
     }
 
+    std::vector<std::string> GetProperties() const {
+        std::vector<std::string> Properties;
+        {
+            std::uintptr_t ClassDescriptor = read_memory<std::uintptr_t>(_Self + offsets::ClassDescriptor, handle);
+
+            std::uintptr_t PropertiesStart = read_memory<std::uintptr_t>(ClassDescriptor + 0x28, handle);
+            std::uintptr_t PropertiesEnd = read_memory<std::uintptr_t>(ClassDescriptor + 0x30, handle);
+
+            for (std::uintptr_t PropertyAddress = PropertiesStart; PropertyAddress < PropertiesEnd; PropertyAddress += 0x8) {
+                std::uintptr_t PropertyPtr = read_memory<std::uintptr_t>(PropertyAddress, handle);
+                if (PropertyPtr != 0)
+                    Properties.push_back(functions::ReadRobloxString(read_memory<std::uintptr_t>(PropertyPtr + 0x8, handle), handle));
+            }
+        }
+        return Properties;
+    }
+
     // Variables
     inline std::uintptr_t Self() const {
         return _Self;
@@ -198,16 +215,16 @@ public:
         return functions::ReadRobloxString(read_memory<std::uintptr_t>(_Self + offsets::Name, handle), handle);
     }
 
+    inline std::string ClassName() const {
+        return functions::ReadRobloxString(read_memory<std::uintptr_t>(read_memory<std::uintptr_t>(_Self + offsets::ClassDescriptor, handle) + offsets::ClassName, handle), handle);
+    }
+
     inline std::uintptr_t ParentAddress() const {
         return read_memory<std::uintptr_t>(_Self + offsets::Parent, handle);
     }
 
     inline std::unique_ptr<Instance> Parent() const {
         return std::make_unique<Instance>(ParentAddress(), handle);
-    }
-
-    inline std::string ClassName() const {
-        return classDescriptor.Name;
     }
 };
 
@@ -266,6 +283,14 @@ public:
             return;
 
         write_memory<std::uintptr_t>(instancePtr + offsets::This, new_address, handle);
+    }
+
+    std::vector<std::string> GetProperties(const std::string_view objectval_name) const {
+        std::uintptr_t instancePtr = RBXClient::GetObjectValuePtr(objectval_name);
+        if (instancePtr == 0)
+            return {};
+
+        return Instance(instancePtr, handle).GetProperties();
     }
 
     std::uintptr_t GetObjectValuePtr(std::string_view objectval_name) const;

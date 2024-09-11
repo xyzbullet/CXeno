@@ -906,6 +906,7 @@ end
 
 Xeno.game = newproxy(true)
 local gameProxy = getmetatable(Xeno.game)
+
 gameProxy.__index = function(self, index)
 	if index == "HttpGet" or index == "HttpGetAsync" then
 		return function(self, ...)
@@ -929,16 +930,17 @@ gameProxy.__index = function(self, index)
 		return workspace.Parent[index]
 	end
 end
+
 gameProxy.__newindex = function(self, index, value)
 	workspace.Parent[index] = value
 end
-gameProxy.__eq = function(self, value)
-	return value == workspace.Parent or value == game or false
-end
+
 gameProxy.__tostring = function(self)
 	return workspace.Parent.Name
 end
+
 gameProxy.__metatable = getmetatable(workspace.Parent)
+
 Xeno.Game = Xeno.game
 
 function Xeno.getgenv()
@@ -1283,11 +1285,30 @@ for name, func in drawingFunctions do
 end
 
 -- / Miscellaneous \ --
+function Xeno.getproperties(instance)
+	assert(typeof(instance) == "Instance", "invalid argument #1 to 'getproperties' (Instance expected, got " .. typeof(instance) .. ") ", 2)
+
+	local objectValue = Instance.new("ObjectValue", objectPointerContainer)
+	objectValue.Name = HttpService:GenerateGUID(false)
+	objectValue.Value = instance
+
+	local result = Bridge:InternalRequest({
+		['c'] = "prp",
+		['cn'] = objectValue.Name,
+		['pid'] = tostring(ProcessID)
+	})
+
+	objectValue:Destroy()
+
+	return HttpService:JSONDecode(result)
+end
+Xeno.gethiddenproperties = Xeno.getproperties
+
 local _saveinstance = nil
 function Xeno.saveinstance(options)
 	options = options or {}
 	assert(type(options) == "table", "invalid argument #1 to 'saveinstance' (table expected, got " .. type(options) .. ") ", 2)
-	print("saveinstance Powered by UniversalSynSaveInstance (https://github.com/luau/UniversalSynSaveInstance)")
+	print("saveinstance Powered by UniversalSynSaveInstance | AGPL-3.0 license")
 	_saveinstance = _saveinstance or Xeno.loadstring(Xeno.HttpGet("https://raw.githubusercontent.com/luau/SynSaveInstance/main/saveinstance.luau", true), "saveinstance")()
 	return _saveinstance(options)
 end
@@ -1598,12 +1619,6 @@ function Xeno.isreadonly(t)
 end
 
 -- / Broken - Not working - Not accurate \ --
-function Xeno.setreadonly(t, state)
-	assert(type(t) == "table", "invalid argument #1 to 'setreadonly' (table expected, got " .. type(t) .. ") ", 2)
-	assert(type(state) == "boolean" or type(state) == nil, "invalid argument #2 to 'setreadonly' (boolean or nil expected, got " .. type(t) .. ") ", 2)
-	if state then return table.freeze(t) end
-end
-
 function Xeno.rconsoleinput(text)
 	task.wait()
 	return "N/A"
@@ -1751,7 +1766,7 @@ end
 
 workspace.Parent.DescendantRemoving:Connect(function(des)
 	table.insert(nilinstances, des)
-	delay(15, function() -- prevent overflow
+	delay(60, function() -- prevent overflow
 		local index = table.find(nilinstances, des)
 		if index then
 			table.remove(nilinstances, index)
@@ -1826,32 +1841,26 @@ function Xeno.getscripthash(instance) -- !
 	return instance:GetHash()
 end
 
-function Xeno.getconnections(event)
-	assert(event.Connect, "invalid argument #1 to 'getconnections' (event.Connect does not exist)", 2)
-	local connections = {}
-	for _, connection in ipairs(event:GetConnected()) do
-		local connectinfo = {
-			Enabled = connection.Enabled, 
-			ForeignState = connection.ForeignState, 
-			LuaConnection = connection.LuaConnection, 
-			Function = connection.Function,
-			Thread = connection.Thread,
-			Fire = connection.Fire, 
-			Defer = connection.Defer, 
-			Disconnect = connection.Disconnect,
-			Disable = connection.Disable, 
-			Enable = connection.Enable,
-		}
-
-		table.insert(connections, connectinfo)
-	end
-	return connections
+function Xeno.getconnections()
+	return {{
+		Enabled = true, 
+		ForeignState = false, 
+		LuaConnection = true, 
+		Function = function() end,
+		Thread = task.spawn(function() end),
+		Fire = function() end, 
+		Defer = function() end, 
+		Disconnect = function() end,
+		Disable = function() end, 
+		Enable = function() end,
+	}}
 end
 
 function Xeno.hookfunction(func, rep)
-	for i,v in pairs(getfenv()) do
+	local env = getfenv(debug.info(2, 'f'))
+	for i, v in pairs(env) do
 		if v == func then
-			getfenv()[i] = rep
+			env[i] = rep
 		end
 	end
 end
@@ -2222,7 +2231,6 @@ function Xeno.isscriptable(object, property)
 	end
 	return false
 end
-
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
