@@ -6,6 +6,9 @@ An executor made for the web version of Roblox.
 
 It uses the common method of writing unsigned bytecode into a Roblox core module script to manage execution, also more stable and flexible than most executors that has used this exact method.
 
+## Note
+> If you're going to use my source and "skid" off of it atleast use the license and give credits. Don't be like the others who used my entire source code and claimed it as their own without mentioning anything about Xeno nor the publisher + distributing & selling to others.
+
 ## Features
 - Fast execution
 - Multi-instance compatibility
