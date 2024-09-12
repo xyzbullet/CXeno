@@ -1,5 +1,6 @@
 > [!WARNING]
-> This is highly detected by Roblox. Use this repository to understand what's happening and how it works.
+> You are most likely going to be banned since this is detected by Byfron. Use an alt account while running Xeno. Use the repository to understand what's happening and how it works.
+> I am not liable for any bans
 
 # Xeno
 An executor made for the web version of Roblox.
