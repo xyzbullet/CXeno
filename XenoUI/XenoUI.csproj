@@ -26,9 +26,9 @@ https://github.com/Riz-ve/Xeno</Description>
     <Authors>$(AssemblyName)</Authors>
     <PackageId>$(AssemblyName)</PackageId>
     <Product>Xeno</Product>
-    <FileVersion>1.0.4</FileVersion>
-    <AssemblyVersion>1.0.4</AssemblyVersion>
-    <Version>1.0.4</Version>
+    <FileVersion>1.0.45</FileVersion>
+    <AssemblyVersion>1.0.45</AssemblyVersion>
+    <Version>1.0.45</Version>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>

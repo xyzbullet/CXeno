@@ -1,7 +1,5 @@
 import sys, os, re, time
 
-# This is a bad python code to format the scripts into 1 line (yes i suck)
-
 def main():
     if len(sys.argv) < 2:
         print("no args found!"); time.sleep(5)

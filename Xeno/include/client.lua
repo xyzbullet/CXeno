@@ -327,7 +327,7 @@ function Bridge:InternalRequest(body, timeout)
 	end)
 
 	if success and result then
-		error("XENO SERVER ERRO: " .. tostring(result), 2)
+		error("XENO SERVER ERROR: " .. tostring(result), 2)
 	end
 
 	error("An unknown error occured by the server.", 2)

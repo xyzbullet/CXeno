@@ -19,9 +19,9 @@
 namespace offsets {
     // Instance
     constexpr std::uintptr_t This = 0x8;
-    constexpr std::uintptr_t Name = 0x50;
-    constexpr std::uintptr_t Children = 0x58;
-    constexpr std::uintptr_t Parent = 0x68;
+    constexpr std::uintptr_t Name = 0x48;
+    constexpr std::uintptr_t Children = 0x50;
+    constexpr std::uintptr_t Parent = 0x60;
 
     constexpr std::uintptr_t ClassDescriptor = 0x18;
     constexpr std::uintptr_t ClassName = 0x8;
@@ -36,11 +36,11 @@ namespace offsets {
     constexpr std::uintptr_t BytecodeSize = 0x20;
 
     // Other
-    constexpr std::uintptr_t LocalPlayer = 0x108;
-    constexpr std::uintptr_t ObjectValue = 0xc8;
+    constexpr std::uintptr_t LocalPlayer = 0x100;
+    constexpr std::uintptr_t ObjectValue = 0xc0;
 }
 
-const std::string_view Xeno_Version = "1.0.4";
+const std::string_view Xeno_Version = "1.0.45";
 
 template<typename T>
 T read_memory(std::uintptr_t address, HANDLE handle);

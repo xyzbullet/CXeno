@@ -55,7 +55,7 @@
             <WrapPanel>
                 <Image Source="/Resources/Images/icon.ico" Margin="10,0,0,0"/>
                 <TextBlock Foreground="White" FontSize="18" Margin="10,0,0,0" VerticalAlignment="Center" FontFamily="Segoe UI Black" ToolTip="Made by .rizve on Discord (https://rizve.us.to)">Xeno</TextBlock>
-                <TextBlock Foreground="White" Margin="3,0,0,0" VerticalAlignment="Center" FontFamily="Segoe UI Semibold">v1.04</TextBlock>
+                <TextBlock Foreground="White" Margin="3,0,0,0" VerticalAlignment="Center" FontFamily="Segoe UI Semibold">v1.045</TextBlock>
             </WrapPanel>
             <StackPanel Orientation="Horizontal" 
                         HorizontalAlignment="Right">
