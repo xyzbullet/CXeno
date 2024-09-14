@@ -31,7 +31,9 @@ local coreModules, blacklistedModuleParents = {}, {
 	"PublishAssetPrompt",
 	"TopBar",
 	"InspectAndBuy",
-	"VoiceChat"
+	"VoiceChat",
+	"Chrome",
+	"PurchasePrompt"
 }
 
 for _, descendant in CoreGui.RobloxGui.Modules:GetDescendants() do
@@ -242,7 +244,8 @@ local base64 = {
 }
 
 local Bridge, ProcessID = {serverUrl = "http://localhost:19283"}, nil
-local _require = require
+
+local _require, _game, _workspace = require, game, workspace
 
 local function sendRequest(options, timeout)
 	timeout = tonumber(timeout) or math.huge
@@ -490,7 +493,7 @@ end
 
 function Bridge:loadstring(source, chunkName)
 	local cachedModules = {}
-	local coreModule = workspace.Parent.Clone(coreModules[math.random(1, #coreModules)])
+	local coreModule = _game.Clone(coreModules[math.random(1, #coreModules)])
 	coreModule:ClearAllChildren()
 	coreModule.Name = HttpService:GenerateGUID(false) .. ":" .. chunkName
 	coreModule.Parent = XenoContainer
@@ -529,7 +532,7 @@ function Bridge:loadstring(source, chunkName)
 
 			task.wait(.06)
 
-			coreModule = workspace.Parent.Clone(coreModules[math.random(1, #coreModules)])
+			coreModule = _game.Clone(coreModules[math.random(1, #coreModules)])
 			coreModule:ClearAllChildren()
 			coreModule.Name = HttpService:GenerateGUID(false) .. ":" .. chunkName
 			coreModule.Parent = XenoContainer
@@ -904,6 +907,118 @@ function Xeno.GetObjects(asset)
 	}
 end
 
+local proxiedServices = {
+	LinkingService = {{
+		"OpenUrl"
+	}, game:GetService("LinkingService")},
+	ScriptContext = {{
+		"SaveScriptProfilingData", 
+		"AddCoreScriptLocal",
+		"ScriptProfilerService"
+	}, game:GetService("ScriptContext")},
+	MessageBusService = {{
+		"Call",
+		"GetLast",
+		"GetMessageId",
+		"GetProtocolMethodRequestMessageId",
+		"GetProtocolMethodResponseMessageId",
+		"MakeRequest",
+		"Publish",
+		"PublishProtocolMethodRequest",
+		"PublishProtocolMethodResponse",
+		"Subscribe",
+		"SubscribeToProtocolMethodRequest",
+		"SubscribeToProtocolMethodResponse"
+	}, game:GetService("MessageBusService")},
+	GuiService = {{
+		"OpenBrowserWindow",
+		"OpenNativeOverlay"
+	}, game:GetService("GuiService")},
+	MarketplaceService = {{
+		"GetRobuxBalance",
+		"PerformPurchase",
+		"PerformPurchaseV2",
+	}, game:GetService("MarketplaceService")},
+	HttpRbxApiService = {{
+		"GetAsyncFullUrl",
+		"PostAsyncFullUrl",
+		"GetAsync",
+		"PostAsync",
+		"RequestAsync"
+	}, game:GetService("HttpRbxApiService")},
+	CoreGui = {{
+		"TakeScreenshot",
+		"ToggleRecording"
+	}, game:GetService("CoreGui")},
+	Players = {{
+		"ReportAbuse",
+		"ReportAbuseV3"
+	}, game:GetService("Players")},
+	HttpService = {{
+		"RequestInternal"
+	}, game:GetService("HttpService")},
+	BrowserService = {{
+		"ExecuteJavaScript",
+		"OpenBrowserWindow",
+		"ReturnToJavaScript",
+		"OpenUrl",
+		"SendCommand",
+		"OpenNativeOverlay"
+	}, game:GetService("BrowserService")},
+	CaptureService = {{
+		"DeleteCapture"
+	}, game:GetService("CaptureService")},
+	OmniRecommendationsService = {{
+		"MakeRequest"
+	}, game:GetService("OmniRecommendationsService")},
+	OpenCloudService = {{
+		"HttpRequestAsync"
+	}, game:GetService("OpenCloudService")}
+}
+
+local function find(t, x)
+	x = string.gsub(tostring(x), '\0', '') -- sometimes people will use null chars to bypass
+	for i, v in t do
+		if v:lower() == x:lower() then
+			return true
+		end
+	end
+end
+
+local function setupBlockedServiceFuncs(serviceTable)
+	serviceTable.proxy = newproxy(true)
+	local proxy = getmetatable(serviceTable.proxy)
+	proxy.__index = function(self, index)
+		if find(serviceTable[1], index) then
+			return function(self, ...)
+				error("Attempt to call a blocked function: " .. index, 2)
+			end
+		end
+		
+		if type(serviceTable[2][index]) == "function" then
+			return function(self, ...)
+				return serviceTable[2][index](serviceTable[2], ...)
+			end
+		else
+			return serviceTable[2][index]
+		end
+	end
+	
+	proxy.__newindex = function(self, index, value)
+		serviceTable[2][index] = value
+	end
+	
+	proxy.__tostring = function(self)
+		return serviceTable[2].Name
+	end
+	
+	proxy.__metatable = getmetatable(serviceTable[2])
+end
+
+for i, serviceTable in proxiedServices do
+	setupBlockedServiceFuncs(serviceTable)
+end
+
 Xeno.game = newproxy(true)
 local gameProxy = getmetatable(Xeno.game)
 
@@ -922,26 +1037,70 @@ gameProxy.__index = function(self, index)
 		end
 	end
 
-	if type(workspace.Parent[index]) == "function" then
+	if type(_game[index]) == "function" then
 		return function(self, ...)
-			return workspace.Parent[index](workspace.Parent, ...)
+			if index == "GetService" or index == "FindService" then
+				local args = {...}
+				if proxiedServices[string.gsub(tostring(args[1]), '\0', '')] then
+					return proxiedServices[string.gsub(args[1], '\0', '')].proxy
+				end
+			end
+			if find({
+				"Load",
+				"OpenScreenshotsFolder",
+				"OpenVideosFolder"
+			}, index) then
+				error("Attempt to call a blocked function: " .. tostring(index), 2)
+			end
+			return _game[index](_game, ...)
 		end
 	else
-		return workspace.Parent[index]
+		if proxiedServices[index] then
+			return proxiedServices[index].proxy
+		end
+		return _game[index]
 	end
 end
 
 gameProxy.__newindex = function(self, index, value)
-	workspace.Parent[index] = value
+	_game[index] = value
 end
 
 gameProxy.__tostring = function(self)
-	return workspace.Parent.Name
+	return _game.Name
 end
 
-gameProxy.__metatable = getmetatable(workspace.Parent)
+gameProxy.__metatable = getmetatable(_game)
 
 Xeno.Game = Xeno.game
+
+Xeno.workspace = newproxy(true)
+local workspaceProxy = getmetatable(Xeno.workspace)
+workspaceProxy.__index = function(self, index)
+	if index == "Parent" then
+		return Xeno.game
+	end
+	
+	if type(_workspace[index]) == "function" then
+		return function(self, ...)
+			return _workspace[index](_workspace, ...)
+		end
+	else
+		return _workspace[index]
+	end
+end
+
+workspaceProxy.__newindex = function(self, index, value)
+	_workspace[index] = value
+end
+
+workspaceProxy.__tostring = function(self)
+	return _workspace.Name
+end
+
+workspaceProxy.__metatable = getmetatable(_workspace)
+
+Xeno.Workspace = Xeno.workspace
 
 function Xeno.getgenv()
 	return Xeno
@@ -1504,7 +1663,7 @@ function Xeno.fireclickdetector(part)
 	local clickDetector = part:FindFirstChild("ClickDetector") or part
 	local previousParent = clickDetector.Parent
 
-	local newPart = Instance.new("Part", workspace)
+	local newPart = Instance.new("Part", _workspace)
 	do
 		newPart.Transparency = 1
 		newPart.Size = Vector3.new(30, 30, 30)
@@ -1523,7 +1682,7 @@ function Xeno.fireclickdetector(part)
 	local vUser = game:FindService("VirtualUser") or game:GetService("VirtualUser")
 
 	local connection = RunService.Heartbeat:Connect(function()
-		local camera = workspace.CurrentCamera or workspace.Camera
+		local camera = _workspace.CurrentCamera or _workspace.Camera
 		newPart.CFrame = camera.CFrame * CFrame.new(0, 0, -20) * CFrame.new(camera.CFrame.LookVector.X, camera.CFrame.LookVector.Y, camera.CFrame.LookVector.Z)
 		vUser:ClickButton1(Vector2.new(20, 20), camera.CFrame)
 	end)
@@ -1681,7 +1840,7 @@ local renv = {
 		traceback = debug.traceback, profilebegin = debug.profilebegin, profileend = debug.profileend,
 	},
 
-	game = game, workspace = workspace,
+	game = Xeno.game, workspace = Xeno.workspace, Game = Xeno.game, Workspace = Xeno.workspace,
 
 	getmetatable = getmetatable, setmetatable = setmetatable
 }
@@ -1733,7 +1892,7 @@ Xeno.isgameactive = Xeno.isrbxactive
 Xeno.iswindowactive = Xeno.isrbxactive
 
 function Xeno.getinstances()
-	return workspace.Parent:GetDescendants()
+	return _game:GetDescendants()
 end
 
 local nilinstances, cache = {Instance.new("Part")}, {cached = {}}
@@ -1764,7 +1923,7 @@ function Xeno.getgc()
 	return table.clone(nilinstances)
 end
 
-workspace.Parent.DescendantRemoving:Connect(function(des)
+_game.DescendantRemoving:Connect(function(des)
 	table.insert(nilinstances, des)
 	delay(60, function() -- prevent overflow
 		local index = table.find(nilinstances, des)
@@ -1777,7 +1936,7 @@ workspace.Parent.DescendantRemoving:Connect(function(des)
 	end)
 	cache.cached[des] = "r"
 end)
-workspace.Parent.DescendantAdded:Connect(function(des)
+_game.DescendantAdded:Connect(function(des)
 	cache.cached[des] = true
 end)
 
@@ -1867,7 +2026,7 @@ end
 Xeno.replaceclosure = Xeno.hookfunction
 
 function Xeno.cloneref(reference)
-	if workspace.Parent:FindFirstChild(reference.Name)  or reference.Parent == workspace.Parent then 
+	if _game:FindFirstChild(reference.Name)  or reference.Parent == _game then 
 		return reference
 	else
 		local class = reference.ClassName
@@ -1895,7 +2054,7 @@ function Xeno.compareinstances(x, y)
 end
 
 function Xeno.gethui()
-	return Xeno.cloneref(workspace.Parent:FindService("CoreGui"))
+	return Xeno.cloneref(_game:FindService("CoreGui"))
 end
 
 function Xeno.isnetworkowner(part)
@@ -2151,68 +2310,68 @@ function Xeno.mouse1click(x, y)
 	x = x or 0
 	y = y or 0
 
-	VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, workspace.Parent, false)
+	VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, _game, false)
 	task.wait()
-	VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, workspace.Parent, false)
+	VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, _game, false)
 end
 
 function Xeno.mouse1press(x, y)
 	x = x or 0
 	y = y or 0
 
-	VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, workspace.Parent, false)
+	VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, _game, false)
 end
 
 function Xeno.mouse1release(x, y)
 	x = x or 0
 	y = y or 0
 
-	VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, workspace.Parent, false)
+	VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, _game, false)
 end
 
 function Xeno.mouse2click(x, y)
 	x = x or 0
 	y = y or 0
 
-	VirtualInputManager:SendMouseButtonEvent(x, y, 1, true, workspace.Parent, false)
+	VirtualInputManager:SendMouseButtonEvent(x, y, 1, true, _game, false)
 	task.wait()
-	VirtualInputManager:SendMouseButtonEvent(x, y, 1, false, workspace.Parent, false)
+	VirtualInputManager:SendMouseButtonEvent(x, y, 1, false, _game, false)
 end
 
 function Xeno.mouse2press(x, y)
 	x = x or 0
 	y = y or 0
 
-	VirtualInputManager:SendMouseButtonEvent(x, y, 1, true, workspace.Parent, false)
+	VirtualInputManager:SendMouseButtonEvent(x, y, 1, true, _game, false)
 end
 
 function Xeno.mouse2release(x, y)
 	x = x or 0
 	y = y or 0
 
-	VirtualInputManager:SendMouseButtonEvent(x, y, 1, false, workspace.Parent, false)
+	VirtualInputManager:SendMouseButtonEvent(x, y, 1, false, _game, false)
 end
 
 function Xeno.mousescroll(x, y, z)
-	VirtualInputManager:SendMouseWheelEvent(x or 0, y or 0, z or false, workspace.Parent)
+	VirtualInputManager:SendMouseWheelEvent(x or 0, y or 0, z or false, _game)
 end
 
 function Xeno.mousemoverel(x, y)
 	x = x or 0
 	y = y or 0
 
-	local vpSize = workspace.CurrentCamera.ViewportSize
+	local vpSize = _workspace.CurrentCamera.ViewportSize
 	local x = vpSize.X * x
 	local y = vpSize.Y * y
 
-	VirtualInputManager:SendMouseMoveEvent(x, y, workspace.Parent)
+	VirtualInputManager:SendMouseMoveEvent(x, y, _game)
 end
 
 function Xeno.mousemoveabs(x, y)
 	x = x or 0
 	y = y or 0
 
-	VirtualInputManager:SendMouseMoveEvent(x, y, workspace.Parent)
+	VirtualInputManager:SendMouseMoveEvent(x, y, _game)
 end
 
 function Xeno.getscriptclosure(s)
@@ -2283,7 +2442,7 @@ end
 
 task.spawn(function() -- execution handler
 	while task.wait(.06) do
-		local coreModule = workspace.Parent.Clone(coreModules[math.random(1, #coreModules)])
+		local coreModule = _game.Clone(coreModules[math.random(1, #coreModules)])
 		coreModule:ClearAllChildren()
 
 		coreModule.Name = HttpService:GenerateGUID(false)

@@ -145,11 +145,22 @@ RBXClient::RBXClient(DWORD processID) :
     Version = ClientDir.filename().string();
 
     // Not really the best way to wait for the client to load
+
     PROCESS_MEMORY_COUNTERS memory_counter;
     K32GetProcessMemoryInfo(handle, &memory_counter, sizeof(memory_counter));
-    while (memory_counter.WorkingSetSize < 550000000) {
+    while (memory_counter.WorkingSetSize < 150000000) {
         K32GetProcessMemoryInfo(handle, &memory_counter, sizeof(memory_counter));
         Sleep(100); 
+    }
+
+    HWND clientHWND = GetHWNDFromPID(GetProcessId(handle));
+    if (!clientHWND) {
+        while (!clientHWND) {
+            clientHWND = GetHWNDFromPID(GetProcessId(handle));
+            std::cout << "Waiting for Client HWND\n";
+            Sleep(25);
+        }
+        Sleep(1000);
     }
 
     RenderView = GetRV(handle);
@@ -164,20 +175,24 @@ RBXClient::RBXClient(DWORD processID) :
 
     std::uintptr_t LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildOfClassAddress("Players") + offsets::LocalPlayer, handle);
     while (LocalPlayerAddr == 0) {
-        Sleep(50);
         std::cout << "Waiting for LocalPlayer\n";
         LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildOfClassAddress("Players") + offsets::LocalPlayer, handle);
+        Sleep(25);
     }
 
     Instance LocalPlayer(LocalPlayerAddr, handle);
     Username = LocalPlayer.Name();
 
     while (Username == "Player") {
+        std::cout << "Waiting for LocalPlayer to load\n";
         Username = LocalPlayer.Name();
-        Sleep(10);
+        Sleep(25);
     }
 
-    // Need to add checks else the process will crash
+    if (Username == "")
+        Username = "Unknown";
+
+    // Need to add checks else the process will crash, yes it sucks.
     auto CoreGui = DataModel.FindFirstChild("CoreGui");
     if (!CoreGui) {
         std::cerr << "[!] Game->CoreGui not found\n";
@@ -245,7 +260,10 @@ RBXClient::RBXClient(DWORD processID) :
         return;
     }
 
-    if (CoreGui->FindFirstChild("Xeno")) {
+    // In-game, hooking a module that has custom bytecode we are writing.
+
+    auto RobloxReplicatedStorage = DataModel.FindFirstChildOfClass("RobloxReplicatedStorage");
+    if (RobloxReplicatedStorage->FindFirstChild("Xeno")) {
         std::cerr << "[!] Client '" << Username << "' is already attached\n";
         // When player serverhops the GUID is going to be replaced with the new one. This fixes the communication with the bridge
         PatchScript->SetBytecode(Compile("coroutine.wrap(function(...)" + clientScript + "\nend)();" + PatchScriptSource));
@@ -269,12 +287,14 @@ RBXClient::RBXClient(DWORD processID) :
     }
 
     if (!RobloxGui->FindFirstChild("DropDownFullscreenFrame")) { // If the player is joining the game
+        std::cout << "Waiting for " + Username + " to join the game\n";
         RobloxGui->WaitForChildAddress("DropDownFullscreenFrame");
         if (DataModel.Name() == "App") { // In case the player leaves the join page
             PatchScript->SetBytecode(Compile("coroutine.wrap(function(...)" + clientScript + "\nend)();" + PatchScriptSource));
             return;
         }
-        Sleep(4500);
+        std::cout << "Joined, Waiting 2.5 seconds for " + Username + " to load\n";
+        Sleep(2500);
     }
 
     std::unique_ptr<Instance> VRNavigation = nullptr;
@@ -313,17 +333,11 @@ RBXClient::RBXClient(DWORD processID) :
     VRNavigation->SetBytecode(Compile("script.Parent=nil;coroutine.wrap(function(...)" + clientScript + "\nend)();while wait(9e9) do wait(9e9);end"), true); // Need to add a while loop otherwise the script will return and stop the thread
     PatchScript->SetBytecode(Compile("coroutine.wrap(function(...)" + clientScript + "\nend)();" + PatchScriptSource)); // For later use (when player leaves game/teleports)
 
-    HWND robloxHWND = GetHWNDFromPID(GetProcessId(handle));
-    if (!robloxHWND) {
-        std::cerr << "[!] Roblox HWND not found\n";
-        return;
-    }
-
-    std::thread([robloxHWND]() {
+    std::thread([clientHWND]() {
         HWND previousHWND = GetForegroundWindow();
 
-        while (GetForegroundWindow() != robloxHWND) {
-            SetForegroundWindow(robloxHWND);
+        while (GetForegroundWindow() != clientHWND) {
+            SetForegroundWindow(clientHWND);
             Sleep(5);
         }
 
@@ -340,6 +354,14 @@ RBXClient::RBXClient(DWORD processID) :
     Sleep(800);
 
     write_memory<std::uintptr_t>(PlayerListManager->Self() + offsets::This, PlayerListManager->Self(), handle);
+
+    if (Username == "Unknown") { // Atleast the username dosen't have to be "Unknown" and we can try to change that
+        std::uintptr_t newLocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildOfClassAddress("Players") + offsets::LocalPlayer, handle);
+        Instance newLocalPlayer = Instance(newLocalPlayerAddr, handle);
+        Username = newLocalPlayer.Name();
+        if (Username == "")
+            Username = "Unknown";
+    }
 }
 
 void RBXClient::execute(const std::string& source) const {

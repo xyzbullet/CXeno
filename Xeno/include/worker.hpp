@@ -40,7 +40,7 @@ namespace offsets {
     constexpr std::uintptr_t ObjectValue = 0xc0;
 }
 
-const std::string_view Xeno_Version = "1.0.45";
+const std::string_view Xeno_Version = "1.0.5";
 
 template<typename T>
 T read_memory(std::uintptr_t address, HANDLE handle);
