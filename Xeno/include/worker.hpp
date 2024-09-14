@@ -18,26 +18,26 @@
 
 namespace offsets {
     // Instance
-    constexpr std::uintptr_t This = 0x8;
-    constexpr std::uintptr_t Name = 0x48;
-    constexpr std::uintptr_t Children = 0x50;
-    constexpr std::uintptr_t Parent = 0x60;
+    constexpr std::uint64_t This = 0x8;
+    constexpr std::uint64_t Name = 0x48;
+    constexpr std::uint64_t Children = 0x50;
+    constexpr std::uint64_t Parent = 0x60;
 
-    constexpr std::uintptr_t ClassDescriptor = 0x18;
-    constexpr std::uintptr_t ClassName = 0x8;
+    constexpr std::uint64_t ClassDescriptor = 0x18;
+    constexpr std::uint64_t ClassName = 0x8;
 
     // Scripts
-    constexpr std::uintptr_t ModuleScriptEmbedded = 0x160;
-    constexpr std::uintptr_t IsCoreScript = 0x1a8;
-    constexpr std::uintptr_t ModuleFlags = IsCoreScript - 0x4;
-    constexpr std::uintptr_t LocalScriptEmbedded = 0x1c0;
+    constexpr std::uint64_t ModuleScriptEmbedded = 0x160;
+    constexpr std::uint64_t IsCoreScript = 0x1a8;
+    constexpr std::uint64_t ModuleFlags = IsCoreScript - 0x4;
+    constexpr std::uint64_t LocalScriptEmbedded = 0x1c0;
 
-    constexpr std::uintptr_t Bytecode = 0x10;
-    constexpr std::uintptr_t BytecodeSize = 0x20;
+    constexpr std::uint64_t Bytecode = 0x10;
+    constexpr std::uint64_t BytecodeSize = 0x20;
 
     // Other
-    constexpr std::uintptr_t LocalPlayer = 0x100;
-    constexpr std::uintptr_t ObjectValue = 0xc0;
+    constexpr std::uint64_t LocalPlayer = 0x100;
+    constexpr std::uint64_t ObjectValue = 0xc0;
 }
 
 const std::string_view Xeno_Version = "1.0.5";
@@ -115,7 +115,9 @@ public:
             return existing;
 
         std::chrono::steady_clock::time_point start_time = std::chrono::high_resolution_clock::now();
-        while (std::chrono::high_resolution_clock::now() - start_time <= std::chrono::seconds(timeout)) {
+        auto timeout_duration = std::chrono::seconds(timeout);
+
+        while (std::chrono::high_resolution_clock::now() - start_time <= timeout_duration) {
             if (FindFirstChildAddress(name))
                 return FindFirstChildAddress(name);
             Sleep(100);

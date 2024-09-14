@@ -110,7 +110,9 @@ namespace XenoUI
 		private async void buttonClose_Click(object sender, RoutedEventArgs e)
 		{
 			await SaveScriptContent();
+			Hide();
 			Application.Current.Shutdown();
+			System.Environment.Exit(0);
 		}
 
 		private async Task SaveScriptContent()

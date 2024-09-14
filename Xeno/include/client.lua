@@ -33,7 +33,9 @@ local coreModules, blacklistedModuleParents = {}, {
 	"InspectAndBuy",
 	"VoiceChat",
 	"Chrome",
-	"PurchasePrompt"
+	"PurchasePrompt",
+	"VR",
+	"EmotesMenu"
 }
 
 for _, descendant in CoreGui.RobloxGui.Modules:GetDescendants() do
@@ -946,10 +948,12 @@ local proxiedServices = {
 		"PostAsync",
 		"RequestAsync"
 	}, game:GetService("HttpRbxApiService")},
+	--[[
 	CoreGui = {{
 		"TakeScreenshot",
 		"ToggleRecording"
 	}, game:GetService("CoreGui")},
+	]]
 	Players = {{
 		"ReportAbuse",
 		"ReportAbuseV3"
@@ -987,14 +991,20 @@ end
 
 local function setupBlockedServiceFuncs(serviceTable)
 	serviceTable.proxy = newproxy(true)
-	local proxy = getmetatable(serviceTable.proxy)
-	proxy.__index = function(self, index)
+	local proxyMt = getmetatable(serviceTable.proxy)
+	
+	proxyMt.__index = function(self, index)
+		index = string.gsub(tostring(index), '\0', '')
 		if find(serviceTable[1], index) then
 			return function(self, ...)
 				error("Attempt to call a blocked function: " .. index, 2)
 			end
 		end
 		
+		if index == "Parent" then
+			return Xeno.game
+		end
+
 		if type(serviceTable[2][index]) == "function" then
 			return function(self, ...)
 				return serviceTable[2][index](serviceTable[2], ...)
@@ -1003,16 +1013,16 @@ local function setupBlockedServiceFuncs(serviceTable)
 			return serviceTable[2][index]
 		end
 	end
-	
-	proxy.__newindex = function(self, index, value)
+
+	proxyMt.__newindex = function(self, index, value)
 		serviceTable[2][index] = value
 	end
-	
-	proxy.__tostring = function(self)
+
+	proxyMt.__tostring = function(self)
 		return serviceTable[2].Name
 	end
-	
-	proxy.__metatable = getmetatable(serviceTable[2])
+
+	proxyMt.__metatable = getmetatable(serviceTable[2])
 end
 
 for i, serviceTable in proxiedServices do
@@ -1049,7 +1059,7 @@ gameProxy.__index = function(self, index)
 				"Load",
 				"OpenScreenshotsFolder",
 				"OpenVideosFolder"
-			}, index) then
+				}, index) then
 				error("Attempt to call a blocked function: " .. tostring(index), 2)
 			end
 			return _game[index](_game, ...)
@@ -1077,10 +1087,11 @@ Xeno.Game = Xeno.game
 Xeno.workspace = newproxy(true)
 local workspaceProxy = getmetatable(Xeno.workspace)
 workspaceProxy.__index = function(self, index)
+	index = string.gsub(tostring(index), '\0', '')
 	if index == "Parent" then
 		return Xeno.game
 	end
-	
+
 	if type(_workspace[index]) == "function" then
 		return function(self, ...)
 			return _workspace[index](_workspace, ...)
@@ -2026,7 +2037,7 @@ end
 Xeno.replaceclosure = Xeno.hookfunction
 
 function Xeno.cloneref(reference)
-	if _game:FindFirstChild(reference.Name)  or reference.Parent == _game then 
+	if _game:FindFirstChild(reference.Name) or reference.Parent == _game then 
 		return reference
 	else
 		local class = reference.ClassName
