@@ -10,9 +10,9 @@ It uses the common method of writing unsigned bytecode into a Roblox core module
 # Donation
 I have made a total of **$0** from making the project Xeno. I would highly appreciate any donations that were given to me by anyone since I have spent a lot of time working on this project.
 
-CashApp: $RizveA
+CashApp: **$RizveA**
 
-PayPal: RizveA
+PayPal: **RizveA**
 
 Top 3 Donators:
 1. None
