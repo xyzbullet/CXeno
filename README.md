@@ -15,7 +15,7 @@ CashApp: **$RizveA**
 PayPal: **RizveA**
 
 Top 3 Donators:
-1. [kq](https://discord.com/users/1241238935288545322) | $11.62
+1. [kq](https://discord.com/users/1241238935288545322): **$11.62**
 2. None
 3. None
 
