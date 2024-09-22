@@ -8,15 +8,15 @@ An executor made for the web version of Roblox.
 It uses the common method of writing unsigned bytecode into a Roblox core module script to manage execution, also more stable and flexible than most executors that has used this exact method.
 
 # Donation
-I have made a total of **$11.62** from making the project Xeno. I would highly appreciate any donations that were given to me by anyone since I have spent a lot of time working on this project.
+I have made a total of **$16.96** from making the project Xeno. I would highly appreciate any donations that were given to me by anyone since I have spent a lot of time working on this project.
 
 CashApp: **$RizveA**
 
 PayPal: **RizveA**
 
 Top 3 Donators:
-1. [kq](https://discord.com/users/1241238935288545322): **$11.62**
-2. None
+1. [kqrara](https://discord.com/users/1241238935288545322): **$11.62**
+2. literallysolodev: **$5.34**
 3. None
 
 ## Note
