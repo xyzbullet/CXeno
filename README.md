@@ -10,14 +10,20 @@ It uses the common method of writing unsigned bytecode into a Roblox core module
 # Donation
 I have made a total of **$16.96** from making the project Xeno. I would highly appreciate any donations that were given to me by anyone since I have spent a lot of time working on this project.
 
-CashApp: **$RizveA**
+**CashApp:** ``$RizveA``
 
-PayPal: **RizveA**
+**PayPal:** ``RizveA``
+
+**Bitcoin:** ``bc1qvhdnqtgcselqv9s9dt9varadh0zkal5239pgl4``
+
+**Ethereum:** ``0x713eAb6Bc8e18D1E0cdF6f03eA03df57c889592A``
+
+**Litecoin:** ``LVNsAoXbJHgdCcc6oi8cqbYmGqg9tXsM2P``
 
 Top 3 Donators:
-1. [kqrara](https://discord.com/users/1241238935288545322): **$11.62**
-2. literallysolodev: **$5.34**
-3. None
+1. [*kqrara*](https://discord.com/users/1241238935288545322): **$11.62**
+2. *literallysolodev*: **$5.34**
+3. ***None***
 
 ## Note
 If you're going to use my source and "skid" off of it atleast use the license and give credits. Don't be like the others who used my entire source code and claimed it as their own without mentioning anything about Xeno nor the publisher + distributing & selling to others.
