@@ -174,6 +174,7 @@ RBXClient::RBXClient(DWORD processID) :
     Instance DataModel(dataModelAddress, handle);
 
     std::uintptr_t LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildOfClassAddress("Players") + offsets::LocalPlayer, handle);
+
     while (LocalPlayerAddr == 0) {
         std::cout << "Waiting for LocalPlayer\n";
         LocalPlayerAddr = read_memory<std::uintptr_t>(DataModel.FindFirstChildOfClassAddress("Players") + offsets::LocalPlayer, handle);

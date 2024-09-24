@@ -10,7 +10,7 @@ namespace XenoUI
 {
 	public partial class ClientsWindow : Window
 	{
-		public string XenoVersion = "1.0.5";
+		public string XenoVersion = "1.0.6";
 
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
 		public struct ClientInfo
@@ -54,13 +54,13 @@ namespace XenoUI
 			try
 			{
 				using var client = new HttpClient();
-				string latestVersion = await client.GetStringAsync("https://rizve.us.to/Xeno/LatestVersion");
+				string latestVersion = await client.GetStringAsync("https://raw.githubusercontent.com/Riz-ve/Xeno/refs/heads/main/Assets/LatestVersion");
 				if (latestVersion != XenoVersion)
 				{
 					MessageBox.Show($"The current version {XenoVersion} is outdated.\n\nPlease download the latest version of Xeno ({latestVersion}) here: https://github.com/Riz-ve/Xeno/releases", "Outdated Xeno version", MessageBoxButton.OK, MessageBoxImage.Warning);
 					Application.Current.Shutdown();
 				}
-				SupportedVersion = await client.GetStringAsync("https://rizve.us.to/Xeno/SupportedVersion");
+				SupportedVersion = await client.GetStringAsync("https://raw.githubusercontent.com/Riz-ve/Xeno/refs/heads/main/Assets/AcceptedVersion");
 			}
 			catch (HttpRequestException e)
 			{
