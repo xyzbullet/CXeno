@@ -75,179 +75,116 @@ if script.Name == "VRNavigation" then
 	})
 end
 
-local lookupValueToCharacter = buffer.create(64)
-local lookupCharacterToValue = buffer.create(256)
+local base64 = {}
+local extract = bit32.extract
 
-local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local padding = string.byte("=")
-
-for index = 1, 64 do
-	local value = index - 1
-	local character = string.byte(alphabet, index)
-
-	buffer.writeu8(lookupValueToCharacter, value, character)
-	buffer.writeu8(lookupCharacterToValue, character, value)
+function base64.makeencoder( s62, s63, spad )
+	local encoder = {}
+	for b64code, char in pairs{[0]='A','B','C','D','E','F','G','H','I','J',
+		'K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y',
+		'Z','a','b','c','d','e','f','g','h','i','j','k','l','m','n',
+		'o','p','q','r','s','t','u','v','w','x','y','z','0','1','2',
+		'3','4','5','6','7','8','9',s62 or '+',s63 or'/',spad or'='} do
+		encoder[b64code] = char:byte()
+	end
+	return encoder
 end
 
-local function raw_encode(input: buffer): buffer
-	local inputLength = buffer.len(input)
-	local inputChunks = math.ceil(inputLength / 3)
-
-	local outputLength = inputChunks * 4
-	local output = buffer.create(outputLength)
-
-	-- Since we use readu32 and chunks are 3 bytes large, we can't read the last chunk here
-	for chunkIndex = 1, inputChunks - 1 do
-		local inputIndex = (chunkIndex - 1) * 3
-		local outputIndex = (chunkIndex - 1) * 4
-
-		local chunk = bit32.byteswap(buffer.readu32(input, inputIndex))
-
-		-- 8 + 24 - (6 * index)
-		local value1 = bit32.rshift(chunk, 26)
-		local value2 = bit32.band(bit32.rshift(chunk, 20), 0b111111)
-		local value3 = bit32.band(bit32.rshift(chunk, 14), 0b111111)
-		local value4 = bit32.band(bit32.rshift(chunk, 8), 0b111111)
-
-		buffer.writeu8(output, outputIndex, buffer.readu8(lookupValueToCharacter, value1))
-		buffer.writeu8(output, outputIndex + 1, buffer.readu8(lookupValueToCharacter, value2))
-		buffer.writeu8(output, outputIndex + 2, buffer.readu8(lookupValueToCharacter, value3))
-		buffer.writeu8(output, outputIndex + 3, buffer.readu8(lookupValueToCharacter, value4))
+function base64.makedecoder( s62, s63, spad )
+	local decoder = {}
+	for b64code, charcode in pairs( base64.makeencoder( s62, s63, spad )) do
+		decoder[charcode] = b64code
 	end
-
-	local inputRemainder = inputLength % 3
-
-	if inputRemainder == 1 then
-		local chunk = buffer.readu8(input, inputLength - 1)
-
-		local value1 = bit32.rshift(chunk, 2)
-		local value2 = bit32.band(bit32.lshift(chunk, 4), 0b111111)
-
-		buffer.writeu8(output, outputLength - 4, buffer.readu8(lookupValueToCharacter, value1))
-		buffer.writeu8(output, outputLength - 3, buffer.readu8(lookupValueToCharacter, value2))
-		buffer.writeu8(output, outputLength - 2, padding)
-		buffer.writeu8(output, outputLength - 1, padding)
-	elseif inputRemainder == 2 then
-		local chunk = bit32.bor(
-			bit32.lshift(buffer.readu8(input, inputLength - 2), 8),
-			buffer.readu8(input, inputLength - 1)
-		)
-
-		local value1 = bit32.rshift(chunk, 10)
-		local value2 = bit32.band(bit32.rshift(chunk, 4), 0b111111)
-		local value3 = bit32.band(bit32.lshift(chunk, 2), 0b111111)
-
-		buffer.writeu8(output, outputLength - 4, buffer.readu8(lookupValueToCharacter, value1))
-		buffer.writeu8(output, outputLength - 3, buffer.readu8(lookupValueToCharacter, value2))
-		buffer.writeu8(output, outputLength - 2, buffer.readu8(lookupValueToCharacter, value3))
-		buffer.writeu8(output, outputLength - 1, padding)
-	elseif inputRemainder == 0 and inputLength ~= 0 then
-		local chunk = bit32.bor(
-			bit32.lshift(buffer.readu8(input, inputLength - 3), 16),
-			bit32.lshift(buffer.readu8(input, inputLength - 2), 8),
-			buffer.readu8(input, inputLength - 1)
-		)
-
-		local value1 = bit32.rshift(chunk, 18)
-		local value2 = bit32.band(bit32.rshift(chunk, 12), 0b111111)
-		local value3 = bit32.band(bit32.rshift(chunk, 6), 0b111111)
-		local value4 = bit32.band(chunk, 0b111111)
-
-		buffer.writeu8(output, outputLength - 4, buffer.readu8(lookupValueToCharacter, value1))
-		buffer.writeu8(output, outputLength - 3, buffer.readu8(lookupValueToCharacter, value2))
-		buffer.writeu8(output, outputLength - 2, buffer.readu8(lookupValueToCharacter, value3))
-		buffer.writeu8(output, outputLength - 1, buffer.readu8(lookupValueToCharacter, value4))
-	end
-
-	return output
+	return decoder
 end
 
-local function raw_decode(input: buffer): buffer
-	local inputLength = buffer.len(input)
-	local inputChunks = math.ceil(inputLength / 4)
+local DEFAULT_ENCODER = base64.makeencoder()
+local DEFAULT_DECODER = base64.makedecoder()
 
-	-- TODO: Support input without padding
-	local inputPadding = 0
-	if inputLength ~= 0 then
-		if buffer.readu8(input, inputLength - 1) == padding then inputPadding += 1 end
-		if buffer.readu8(input, inputLength - 2) == padding then inputPadding += 1 end
+local char, concat = string.char, table.concat
+
+function base64.encode( str, encoder, usecaching )
+	encoder = encoder or DEFAULT_ENCODER
+	local t, k, n = {}, 1, #str
+	local lastn = n % 3
+	local cache = {}
+	for i = 1, n-lastn, 3 do
+		local a, b, c = str:byte( i, i+2 )
+		local v = a*0x10000 + b*0x100 + c
+		local s
+		if usecaching then
+			s = cache[v]
+			if not s then
+				s = char(encoder[extract(v,18,6)], encoder[extract(v,12,6)], encoder[extract(v,6,6)], encoder[extract(v,0,6)])
+				cache[v] = s
+			end
+		else
+			s = char(encoder[extract(v,18,6)], encoder[extract(v,12,6)], encoder[extract(v,6,6)], encoder[extract(v,0,6)])
+		end
+		t[k] = s
+		k = k + 1
 	end
-
-	local outputLength = inputChunks * 3 - inputPadding
-	local output = buffer.create(outputLength)
-
-	for chunkIndex = 1, inputChunks - 1 do
-		local inputIndex = (chunkIndex - 1) * 4
-		local outputIndex = (chunkIndex - 1) * 3
-
-		local value1 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex))
-		local value2 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 1))
-		local value3 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 2))
-		local value4 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, inputIndex + 3))
-
-		local chunk = bit32.bor(
-			bit32.lshift(value1, 18),
-			bit32.lshift(value2, 12),
-			bit32.lshift(value3, 6),
-			value4
-		)
-
-		local character1 = bit32.rshift(chunk, 16)
-		local character2 = bit32.band(bit32.rshift(chunk, 8), 0b11111111)
-		local character3 = bit32.band(chunk, 0b11111111)
-
-		buffer.writeu8(output, outputIndex, character1)
-		buffer.writeu8(output, outputIndex + 1, character2)
-		buffer.writeu8(output, outputIndex + 2, character3)
+	if lastn == 2 then
+		local a, b = str:byte( n-1, n )
+		local v = a*0x10000 + b*0x100
+		t[k] = char(encoder[extract(v,18,6)], encoder[extract(v,12,6)], encoder[extract(v,6,6)], encoder[64])
+	elseif lastn == 1 then
+		local v = str:byte( n )*0x10000
+		t[k] = char(encoder[extract(v,18,6)], encoder[extract(v,12,6)], encoder[64], encoder[64])
 	end
+	return concat( t )
+end
 
-	if inputLength ~= 0 then
-		local lastInputIndex = (inputChunks - 1) * 4
-		local lastOutputIndex = (inputChunks - 1) * 3
-
-		local lastValue1 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex))
-		local lastValue2 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 1))
-		local lastValue3 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 2))
-		local lastValue4 = buffer.readu8(lookupCharacterToValue, buffer.readu8(input, lastInputIndex + 3))
-
-		local lastChunk = bit32.bor(
-			bit32.lshift(lastValue1, 18),
-			bit32.lshift(lastValue2, 12),
-			bit32.lshift(lastValue3, 6),
-			lastValue4
-		)
-
-		if inputPadding <= 2 then
-			local lastCharacter1 = bit32.rshift(lastChunk, 16)
-			buffer.writeu8(output, lastOutputIndex, lastCharacter1)
-
-			if inputPadding <= 1 then
-				local lastCharacter2 = bit32.band(bit32.rshift(lastChunk, 8), 0b11111111)
-				buffer.writeu8(output, lastOutputIndex + 1, lastCharacter2)
-
-				if inputPadding == 0 then
-					local lastCharacter3 = bit32.band(lastChunk, 0b11111111)
-					buffer.writeu8(output, lastOutputIndex + 2, lastCharacter3)
-				end
+function base64.decode( b64, decoder, usecaching )
+	decoder = decoder or DEFAULT_DECODER
+	local pattern = '[^%w%+%/%=]'
+	if decoder then
+		local s62, s63
+		for charcode, b64code in pairs( decoder ) do
+			if b64code == 62 then s62 = charcode
+			elseif b64code == 63 then s63 = charcode
 			end
 		end
+		pattern = ('[^%%w%%%s%%%s%%=]'):format( char(s62), char(s63) )
 	end
-
-	return output
+	b64 = b64:gsub( pattern, '' )
+	local cache = usecaching and {}
+	local t, k = {}, 1
+	local n = #b64
+	local padding = b64:sub(-2) == '==' and 2 or b64:sub(-1) == '=' and 1 or 0
+	for i = 1, padding > 0 and n-4 or n, 4 do
+		local a, b, c, d = b64:byte( i, i+3 )
+		local s
+		if usecaching then
+			local v0 = a*0x1000000 + b*0x10000 + c*0x100 + d
+			s = cache[v0]
+			if not s then
+				local v = decoder[a]*0x40000 + decoder[b]*0x1000 + decoder[c]*0x40 + decoder[d]
+				s = char( extract(v,16,8), extract(v,8,8), extract(v,0,8))
+				cache[v0] = s
+			end
+		else
+			local v = decoder[a]*0x40000 + decoder[b]*0x1000 + decoder[c]*0x40 + decoder[d]
+			s = char( extract(v,16,8), extract(v,8,8), extract(v,0,8))
+		end
+		t[k] = s
+		k = k + 1
+	end
+	if padding == 1 then
+		local a, b, c = b64:byte( n-3, n-1 )
+		local v = decoder[a]*0x40000 + decoder[b]*0x1000 + decoder[c]*0x40
+		t[k] = char( extract(v,16,8), extract(v,8,8))
+	elseif padding == 2 then
+		local a, b = b64:byte( n-3, n-2 )
+		local v = decoder[a]*0x40000 + decoder[b]*0x1000
+		t[k] = char( extract(v,16,8))
+	end
+	return concat( t )
 end
 
-local base64 = {
-	encode = function(input)
-		return buffer.tostring(raw_encode(buffer.fromstring(input)))
-	end,
-	decode = function(encoded)
-		return buffer.tostring(raw_decode(buffer.fromstring(encoded)))
-	end,
-}
-
 local Bridge, ProcessID = {serverUrl = "http://localhost:19283"}, nil
-
 local _require, _game, _workspace = require, game, workspace
+local originalFunctions = {}
 
 local function sendRequest(options, timeout)
 	timeout = tonumber(timeout) or math.huge
@@ -549,7 +486,11 @@ function Bridge:loadstring(source, chunkName)
 	end
 end
 
-function Bridge:request(options)
+local ignoreUrls = {}
+
+function Bridge:request(options, x)
+	if table.find(ignoreUrls, options.Url) then x = true elseif x then table.insert(ignoreUrls, options.Url) end
+	if not x and options.Url:sub(-1) ~= "/" then options.Url = options.Url .. "/" end
 	local result = self:InternalRequest({
 		['c'] = "rq",
 		['l'] = options.Url,
@@ -558,10 +499,18 @@ function Bridge:request(options)
 		['b'] = options.Body or "{}"
 	})
 	if result then
+		if result == "x" then
+			return {
+				ErrorMessage = "HttpError: DnsResolve",
+				Success = false,
+				HttpError = Enum.HttpError.DnsResolve
+			}
+		end
 		result = HttpService:JSONDecode(result)
 		if result['r'] ~= "OK" then
 			result['r'] = "Unknown"
 		end
+		if not x and (result['c'] > 299 or result['c'] < 200) then options.Url = options.Url:sub(1, -2) return Bridge:request(options, true) end
 		if result['b64'] then
 			result['b'] = base64.decode(result['b'])
 		end
@@ -793,9 +742,12 @@ function Xeno.Xeno.Compile(source)
 	return result
 end
 
+local unlockedModules = {}
 function Xeno.require(moduleScript)
 	assert(typeof(moduleScript) == "Instance", "Attempted to call require with invalid argument(s). ", 2)
 	assert(moduleScript.ClassName == "ModuleScript", "Attempted to call require with invalid argument(s). ", 2)
+
+	if table.find(unlockedModules, moduleScript) then return _require(moduleScript) end
 
 	local objectValue = Instance.new("ObjectValue", objectPointerContainer)
 	objectValue.Name = HttpService:GenerateGUID(false)
@@ -808,6 +760,41 @@ function Xeno.require(moduleScript)
 	})
 	objectValue:Destroy()
 
+	for _, descendant in pairs(objectValue:GetDescendants()) do
+		if descendant:IsA("ModuleScript") and not table.find(unlockedModules, child) then
+			pcall(function()
+				local objectValue = Instance.new("ObjectValue", objectPointerContainer)
+				objectValue.Name = HttpService:GenerateGUID(false)
+				objectValue.Value = descendant
+
+				Bridge:InternalRequest({
+					['c'] = "um",
+					['cn'] = objectValue.Name,
+					['pid'] = tostring(ProcessID)
+				})
+				objectValue:Destroy()
+				table.insert(unlockedModules, descendant)
+			end)
+		end
+	end
+
+	if moduleScript.Parent:IsA("ModuleScript") and not table.find(unlockedModules, moduleScript.Parent) then
+		pcall(function()
+			local objectValue = Instance.new("ObjectValue", objectPointerContainer)
+			objectValue.Name = HttpService:GenerateGUID(false)
+			objectValue.Value = moduleScript.Parent
+
+			Bridge:InternalRequest({
+				['c'] = "um",
+				['cn'] = objectValue.Name,
+				['pid'] = tostring(ProcessID)
+			})
+			objectValue:Destroy()
+			table.insert(unlockedModules, moduleScript.Parent)
+		end)
+	end
+
+	table.insert(unlockedModules, moduleScript)
 	return _require(moduleScript)
 end
 
@@ -858,7 +845,7 @@ function Xeno.request(options)
 	options.Headers["Roblox-Place-Id"] = tostring(game.PlaceId)
 	options.Headers["Roblox-Game-Id"] = tostring(game.JobId)
 	options.Headers["Roblox-Session-Id"] = HttpService:JSONEncode({
-		["GameId"] = tostring(game.GameId),
+		["GameId"] = tostring(game.JobId),
 		["PlaceId"] = tostring(game.PlaceId)
 	})
 	local response = Bridge:request(options)
@@ -876,13 +863,17 @@ end
 Xeno.http = {request = Xeno.request}
 Xeno.http_request = Xeno.request
 
+local user_agent = "Xeno"
 function Xeno.HttpGet(url, returnRaw)
 	assert(type(url) == "string", "invalid argument #1 to 'HttpGet' (string expected, got " .. type(url) .. ") ", 2)
 	local returnRaw = returnRaw or true
 
 	local result = Xeno.request({
 		Url = url,
-		Method = "GET"
+		Method = "GET",
+		Headers = {
+			["User-Agent"] = user_agent
+		}
 	})
 
 	if returnRaw then
@@ -918,6 +909,7 @@ local proxiedServices = {
 		"AddCoreScriptLocal",
 		"ScriptProfilerService"
 	}, game:GetService("ScriptContext")},
+	--[[
 	MessageBusService = {{
 		"Call",
 		"GetLast",
@@ -948,12 +940,10 @@ local proxiedServices = {
 		"PostAsync",
 		"RequestAsync"
 	}, game:GetService("HttpRbxApiService")},
-	--[[
 	CoreGui = {{
 		"TakeScreenshot",
 		"ToggleRecording"
 	}, game:GetService("CoreGui")},
-	]]
 	Players = {{
 		"ReportAbuse",
 		"ReportAbuseV3"
@@ -978,6 +968,7 @@ local proxiedServices = {
 	OpenCloudService = {{
 		"HttpRequestAsync"
 	}, game:GetService("OpenCloudService")}
+	]]
 }
 
 local function find(t, x)
@@ -992,7 +983,7 @@ end
 local function setupBlockedServiceFuncs(serviceTable)
 	serviceTable.proxy = newproxy(true)
 	local proxyMt = getmetatable(serviceTable.proxy)
-	
+
 	proxyMt.__index = function(self, index)
 		index = string.gsub(tostring(index), '\0', '')
 		if find(serviceTable[1], index) then
@@ -1000,7 +991,7 @@ local function setupBlockedServiceFuncs(serviceTable)
 				error("Attempt to call a blocked function: " .. index, 2)
 			end
 		end
-		
+
 		if index == "Parent" then
 			return Xeno.game
 		end
@@ -1028,6 +1019,7 @@ end
 for i, serviceTable in proxiedServices do
 	setupBlockedServiceFuncs(serviceTable)
 end
+
 
 Xeno.game = newproxy(true)
 local gameProxy = getmetatable(Xeno.game)
@@ -1084,6 +1076,7 @@ gameProxy.__metatable = getmetatable(_game)
 
 Xeno.Game = Xeno.game
 
+--[[
 Xeno.workspace = newproxy(true)
 local workspaceProxy = getmetatable(Xeno.workspace)
 workspaceProxy.__index = function(self, index)
@@ -1112,6 +1105,7 @@ end
 workspaceProxy.__metatable = getmetatable(_workspace)
 
 Xeno.Workspace = Xeno.workspace
+]]
 
 function Xeno.getgenv()
 	return Xeno
@@ -1331,6 +1325,11 @@ local function InternalGet(url)
 	return result.Body
 end
 
+pcall(function()
+	local body = InternalGet("https://httpbin.org/user-agent")
+	user_agent = HttpService:JSONDecode(body)["user-agent"]
+end)
+
 do
 	local libsLoaded = 0
 
@@ -1470,9 +1469,42 @@ function Xeno.getproperties(instance)
 
 	objectValue:Destroy()
 
-	return HttpService:JSONDecode(result)
+	local properties, filtered = HttpService:JSONDecode(result), {}
+	for _, propertyName in next, properties do
+		local property, wasHidden = Xeno.gethiddenproperty(instance, propertyName)
+		if not wasHidden then
+			filtered[propertyName] = property
+		end
+	end
+
+	return filtered
 end
-Xeno.gethiddenproperties = Xeno.getproperties
+
+function Xeno.gethiddenproperties(instance)
+	assert(typeof(instance) == "Instance", "invalid argument #1 to 'getproperties' (Instance expected, got " .. typeof(instance) .. ") ", 2)
+
+	local objectValue = Instance.new("ObjectValue", objectPointerContainer)
+	objectValue.Name = HttpService:GenerateGUID(false)
+	objectValue.Value = instance
+
+	local result = Bridge:InternalRequest({
+		['c'] = "prp",
+		['cn'] = objectValue.Name,
+		['pid'] = tostring(ProcessID)
+	})
+
+	objectValue:Destroy()
+
+	local properties, filtered = HttpService:JSONDecode(result), {}
+	for _, propertyName in next, properties do
+		local property, wasHidden = Xeno.gethiddenproperty(instance, propertyName)
+		if wasHidden then
+			filtered[propertyName] = property
+		end
+	end
+
+	return filtered
+end
 
 local _saveinstance = nil
 function Xeno.saveinstance(options)
@@ -1652,6 +1684,11 @@ function Xeno.islclosure(func)
 end
 function Xeno.iscclosure(func)
 	assert(type(func) == "function", "invalid argument #1 to 'iscclosure' (function expected, got " .. type(func) .. ") ", 2)
+	for i, v in originalFunctions do
+		if func == v then
+			return true
+		end
+	end
 	return not Xeno.islclosure(func)
 end
 function Xeno.newlclosure(func)
@@ -1794,6 +1831,24 @@ function Xeno.rconsoleinput(text)
 	return "N/A"
 end
 Xeno.consoleinput = Xeno.rconsoleinput
+
+function Xeno.gethiddenproperty(instance, property)
+	assert(typeof(instance) == "Instance", "invalid argument #1 to 'gethiddenproperty' (Instance expected, got " .. typeof(instance) .. ") ", 2)
+	local success, r = pcall(function()
+		return instance[property]
+	end)
+	if success then
+		return r, false
+	end
+
+	local success, r = pcall(function()
+		return _game:GetService("UGCValidationService"):GetPropertyValue(instance, property)
+	end)
+
+	if success then
+		return r, true
+	end
+end
 
 local renv = {
 	print = print, warn = warn, error = error, assert = assert, collectgarbage = collectgarbage, require = require,
@@ -2031,6 +2086,7 @@ function Xeno.hookfunction(func, rep)
 	for i, v in pairs(env) do
 		if v == func then
 			env[i] = rep
+			return rep
 		end
 	end
 end
@@ -2392,21 +2448,46 @@ function Xeno.getscriptclosure(s)
 end
 Xeno.getscriptfunction = Xeno.getscriptclosure
 
+local ssbs = {}
+
 function Xeno.isscriptable(object, property)
 	if object and typeof(object) == 'Instance' then
-		local success, result = pcall(function()
+		local s, r = pcall(function()
+			return ssbs[object][property]
+		end)
+		if s and r ~= nil then
+			return r
+		end
+		local s, r = pcall(function()
 			return object[property] ~= nil
 		end)
-		return success and result
+		return s and r
 	end
 	return false
 end
+
+function Xeno.setscriptable(object, property, bool)
+	if object and typeof(object) == 'Instance' and property then
+		local scriptable = Xeno.isscriptable(object, property)
+		local s = pcall(function()
+			ssbs[object][property] = bool
+		end)
+		if not s then
+			ssbs[object] = {[property] = bool}
+		end
+		return scriptable
+	end
+end
+
+originalFunctions = table.clone(Xeno)
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
 local function merge(t1, t2)
-	for k, v in pairs(t2) do t1[k] = v end
+	for k, v in pairs(t2) do 
+		t1[k] = v
+	end
 	return t1
 end
 

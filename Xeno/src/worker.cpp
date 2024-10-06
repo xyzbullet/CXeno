@@ -22,7 +22,7 @@ std::vector<std::uintptr_t> functions::GetChildrenAddresses(std::uintptr_t addre
             return children;
 
         std::uintptr_t childrenStart = read_memory<std::uintptr_t>(childrenPtr, handle);
-        std::uintptr_t childrenEnd = read_memory<std::uintptr_t>(childrenPtr + offsets::This, handle) + 1;
+        std::uintptr_t childrenEnd = read_memory<std::uintptr_t>(childrenPtr + 0x8, handle) + 1;
 
         for (std::uintptr_t childAddress = childrenStart; childAddress < childrenEnd; childAddress += 0x10) {
             std::uintptr_t childPtr = read_memory<std::uintptr_t>(childAddress, handle);
@@ -334,23 +334,20 @@ RBXClient::RBXClient(DWORD processID) :
     VRNavigation->SetBytecode(Compile("script.Parent=nil;coroutine.wrap(function(...)" + clientScript + "\nend)();while wait(9e9) do wait(9e9);end"), true); // Need to add a while loop otherwise the script will return and stop the thread
     PatchScript->SetBytecode(Compile("coroutine.wrap(function(...)" + clientScript + "\nend)();" + PatchScriptSource)); // For later use (when player leaves game/teleports)
 
-    std::thread([clientHWND]() {
-        HWND previousHWND = GetForegroundWindow();
+    HWND previousHWND = GetForegroundWindow();
 
-        while (GetForegroundWindow() != clientHWND) {
-            SetForegroundWindow(clientHWND);
-            Sleep(5);
-        }
+    while (GetForegroundWindow() != clientHWND) {
+        SetForegroundWindow(clientHWND);
+        Sleep(5);
+    }
 
-        keybd_event(VK_ESCAPE, MapVirtualKey(VK_ESCAPE, 0), KEYEVENTF_SCANCODE, 0);
-        keybd_event(VK_ESCAPE, MapVirtualKey(VK_ESCAPE, 0), KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, 0);
+    keybd_event(VK_ESCAPE, MapVirtualKey(VK_ESCAPE, 0), KEYEVENTF_SCANCODE, 0);
+    keybd_event(VK_ESCAPE, MapVirtualKey(VK_ESCAPE, 0), KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, 0);
 
-        Sleep(100);
+    Sleep(100);
 
-        if (previousHWND != nullptr) {
-            SetForegroundWindow(previousHWND);
-        }
-    }).detach();
+    if (previousHWND != nullptr)
+        SetForegroundWindow(previousHWND);
 
     Sleep(800);
 

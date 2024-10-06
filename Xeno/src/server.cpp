@@ -378,8 +378,8 @@ static void serve(Response& res, const json& body) {
 			res.status = 200;
 			res.set_content(responseJ.dump(), "application/json");
 		} else {
-			res.status = 500;
-			res.set_content(R"({"error":"Failed to reach target server"})", "application/json");
+			res.status = 200;
+			res.set_content("x", "text/plain");
 		}
 		return;
 	}
