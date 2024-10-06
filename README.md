@@ -8,7 +8,7 @@ An executor made for the web version of Roblox.
 It uses the common method of writing unsigned bytecode into a Roblox core module script to manage execution, also more stable and flexible than most executors that has used this exact method.
 
 # Donation
-I have made a total of **$16.97** from making the project Xeno. I would highly appreciate any donations that were given to me by anyone since I have spent a lot of time working on this project.
+I have made a total of **$34.97** from making the project Xeno. I would highly appreciate any donations that were given to me by anyone since I have spent a lot of time working on this project.
 
 **CashApp:** ``$RizveA``
 
@@ -21,9 +21,9 @@ I have made a total of **$16.97** from making the project Xeno. I would highly a
 **Litecoin:** ``LVNsAoXbJHgdCcc6oi8cqbYmGqg9tXsM2P``
 
 Top 3 Donators:
-1. [*kqrara*](https://discord.com/users/1241238935288545322): **$11.62**
-2. **literallysolodev**: **$5.34**
-3. *[armandukx](https://discord.com/users/680429100401164298)*: **$0.01**
+1. [*Czdxy*](https://discord.com/users/920163701934424084): **$18.00**
+2. [*kqrara*](https://discord.com/users/1241238935288545322): **$11.62**
+3. **literallysolodev**: **$5.34**
 
 ## Note
 If you're going to use my source and "skid" off of it atleast use the license and give credits. Don't be like the others who used my entire source code and claimed it as their own without mentioning anything about Xeno nor the publisher + distributing & selling to others.
