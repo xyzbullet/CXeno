@@ -604,10 +604,11 @@ static void serve(Response& res, const json& body) {
 		}
 
 		const std::string guid = body["gd"];
+		const std::string username = body["n"];
 
 		std::lock_guard<std::mutex> lock(clientsMtx);
 		for (const auto& client : Clients) {
-			if (client->GUID == guid) {
+			if (client->GUID == guid || client->Username == username) {
 				res.status = 200;
 				res.set_content(std::to_string(client->PID), "text/plain");
 				return;

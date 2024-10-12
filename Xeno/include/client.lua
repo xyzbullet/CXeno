@@ -35,14 +35,15 @@ local coreModules, blacklistedModuleParents = {}, {
 	"Chrome",
 	"PurchasePrompt",
 	"VR",
-	"EmotesMenu"
+	"EmotesMenu",
+	"FTUX"
 }
 
 for _, descendant in CoreGui.RobloxGui.Modules:GetDescendants() do
 	if descendant.ClassName == "ModuleScript" and
 		(function()
 			for i, parentName in next, blacklistedModuleParents do
-				if descendant:IsDescendantOf(CoreGui.RobloxGui.Modules[parentName]) then
+				if descendant == CoreGui.RobloxGui.Modules[parentName] or descendant:IsDescendantOf(CoreGui.RobloxGui.Modules[parentName]) then
 					return
 				end
 			end
@@ -235,7 +236,7 @@ function Bridge:InternalRequest(body, timeout)
 			return
 		end
 
-		error("An unknown error occured by the server.", 2)
+		error("An unknown error occured by the server. Is the server still active?", 2)
 		return
 	end
 
@@ -622,15 +623,18 @@ task.spawn(function()
 	end
 end)
 
+local cLoaded_requests = 0
 local function is_client_loaded()
 	local result = sendRequest({
 		Url = Bridge.serverUrl .. "/send",
 		Body = HttpService:JSONEncode({
 			['c'] = "clt",
 			['gd'] = XENO_UNIQUE,
+			['n'] = cLoaded_requests > 4 and (game.Players.LocalPlayer and game.Players.LocalPlayer.Name or game.Players.PlayerAdded:Wait().Name) or "N/A"
 		}),
 		Method = "POST"
 	})
+	cLoaded_requests += 1
 	if result.Body then
 		return result.Body
 	end
@@ -1579,7 +1583,7 @@ function Xeno.Decompile(script_instance)
 	if script_instance.ClassName ~= "LocalScript" and script_instance.ClassName ~= "ModuleScript" then
 		return "-- Only LocalScript and ModuleScript is supported but got \"" .. script_instance.ClassName .. "\""
 	end
-	return konst_call("/konstant/decompile", script_instance)
+	return tostring(konst_call("/konstant/decompile", script_instance)):gsub("\t", "    ")
 end
 Xeno.decompile = Xeno.Decompile
 
@@ -1591,7 +1595,7 @@ function Xeno.__Disassemble(script_instance)
 	if script_instance.ClassName ~= "LocalScript" and script_instance.ClassName ~= "ModuleScript" then
 		return "-- Only LocalScript and ModuleScript is supported but got \"" .. script_instance.ClassName .. "\""
 	end
-	return konst_call("/konstant/disassemble", script_instance)
+	return tostring(konst_call("/konstant/disassemble", script_instance)):gsub("\t", "    ")
 end
 Xeno.__disassemble = Xeno.__Disassemble
 

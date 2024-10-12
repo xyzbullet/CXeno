@@ -25,22 +25,26 @@ static void newClient(DWORD pid) {
 
 static void init() {
     DWORD CurrentPID = GetCurrentProcessId();
+    wchar_t path[MAX_PATH];
 
-    std::vector<DWORD> xenoPIDs = GetProcessIDsByName(L"Xeno.exe");
-    std::vector<DWORD> xenoUIPIDs = GetProcessIDsByName(L"XenoUI.exe");
+    GetModuleFileNameW(0, path, MAX_PATH);
 
-    xenoPIDs.insert(xenoPIDs.end(), xenoUIPIDs.begin(), xenoUIPIDs.end());
+    std::vector<DWORD> xenoPIDs = GetProcessIDsByName(wcsrchr(path, L'\\') + 1);
 
     for (const DWORD& pid : xenoPIDs) { // Terminate existing Xeno processes
         if (pid == CurrentPID)
             continue;
-        HANDLE hXeno = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+        HANDLE hXeno = OpenProcess(PROCESS_TERMINATE, 0, pid);
         if (hXeno)
             TerminateProcess(hXeno, 0);
     }
 
     while (true) {
         std::vector<DWORD> client_pids = GetProcessIDsByName(L"RobloxPlayerBeta.exe");
+        std::vector<DWORD> shader_pids = GetProcessIDsByName(L"eurotrucks2.exe");
+
+        client_pids.insert(client_pids.end(), shader_pids.begin(), shader_pids.end());
+
         std::unordered_set<DWORD> current_pids(client_pids.begin(), client_pids.end());
         {
             std::lock_guard<std::mutex> lock(clientsMtx);
