@@ -2086,16 +2086,26 @@ function Xeno.getconnections()
 end
 
 function Xeno.hookfunction(func, rep)
-	local env = getfenv(debug.info(2, 'f'))
-	for i, v in pairs(env) do
-		if v == func then
-			env[i] = rep
-			return rep
-		end
-	end
-end
-Xeno.replaceclosure = Xeno.hookfunction
+    local env = getfenv(debug.info(2, 'f'))
+    local funcName
 
+    for name, value in pairs(env) do
+        if value == func then
+            funcName = name
+            break
+        end
+    end
+
+    if funcName then
+        rawset(env, funcName, rep)
+        return rep
+    end
+
+    return nil  -- Return nil if function wasn't found
+end
+
+Xeno.replaceclosure = Xeno.hookfunction
+newhookfunction = Xeno.hookfunction
 function Xeno.cloneref(reference)
 	if _game:FindFirstChild(reference.Name) or reference.Parent == _game then 
 		return reference
