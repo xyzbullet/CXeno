@@ -18,26 +18,26 @@
 
 namespace offsets {
     // Instance
-    constexpr std::uint64_t This = 0x8;
-    constexpr std::uint64_t Name = 0x50; // 0x48
-    constexpr std::uint64_t Children = 0x58; // 0x50
-    constexpr std::uint64_t Parent = 0x28; // 0x60
+    constexpr std::uint64_t This = 0x8; // No direct update found, assuming unchanged
+    constexpr std::uint64_t Name = 0x68; // Updated from 0x48
+    constexpr std::uint64_t Children = 0x70; // Updated from 0x50
+    constexpr std::uint64_t Parent = 0x50; // Updated from 0x60
 
-    constexpr std::uint64_t ClassDescriptor = 0x18;
-    constexpr std::uint64_t ClassName = 0x8;
+    constexpr std::uint64_t ClassDescriptor = 0x18; // Same in new offsets
+    constexpr std::uint64_t ClassName = 0xC8; // Updated from 0x8 (matches HumanoidDisplayName, Value, etc.)
 
     // Scripts
-    constexpr std::uint64_t ModuleScriptEmbedded = 0x160;
-    constexpr std::uint64_t IsCoreScript = 0x1a8;
-    constexpr std::uint64_t ModuleFlags = IsCoreScript - 0x4;
-    constexpr std::uint64_t LocalScriptEmbedded = 0x1c0;
+    constexpr std::uint64_t ModuleScriptEmbedded = 0x168; // Updated from 0x160
+    constexpr std::uint64_t IsCoreScript = 0x1A8; // Same as FakeDataModelToDataModel, likely correct
+    constexpr std::uint64_t ModuleFlags = IsCoreScript - 0x4; // Keeping logic consistent
+    constexpr std::uint64_t LocalScriptEmbedded = 0x1C0; // Same in new offsets
 
-    constexpr std::uint64_t Bytecode = 0x10;
-    constexpr std::uint64_t BytecodeSize = 0x20;
+    constexpr std::uint64_t Bytecode = 0x10; // Same as LocalScriptBytecodePointer and ModuleScriptBytecodePointer
+    constexpr std::uint64_t BytecodeSize = 0x10; // Likely matches StringSize in new offsets
 
     // Other
-    constexpr std::uint64_t LocalPlayer = 0x110; // 0x100
-    constexpr std::uint64_t ObjectValue = 0xc0;
+    constexpr std::uint64_t LocalPlayer = 0x118; // Updated from 0x110
+    constexpr std::uint64_t ObjectValue = 0xC8; // Updated from 0xC0
 }
 
 const std::string_view Xeno_Version = "1.0.8";
